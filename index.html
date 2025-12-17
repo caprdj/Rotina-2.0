@@ -2,18 +2,18 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Vida Fibro</title>
+  <title>Rotina 2.0</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#4b7bec" />
-  <!-- Se quiser, pode usar o mesmo manifest da rotina depois -->
-  <!-- <link rel="manifest" href="manifest.json" /> -->
+  <link rel="manifest" href="./manifest.json" />
 
   <style>
     :root {
       --bg: #f5f5fa;
       --card-bg: #ffffff;
       --primary: #4b7bec;
-      --text-main: #222;
+            --primary-soft: #eef2ff;
+--text-main: #222;
       --text-muted: #666;
       --radius: 16px;
       --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
@@ -220,8 +220,7 @@ Rotina 14 dias</div>
             </div>
           </div>
           <p class="card-text">
-            Planeje seus 14 dias de casa e movimento respeitando níveis de energia, contextos
-            (casa, find, viagem) e pausas.
+            Planeje seus 14 dias de casa e movimento respeitando níveis de energia, contextos e pausas.
           </p>
         </article>
       </a>
@@ -238,8 +237,7 @@ Rotina 14 dias</div>
             </div>
           </div>
           <p class="card-text">
-            Organize receitas, distribua ao longo dos dias, gere lista de compras e mantenha
-            o foco nas opções anti-inflamatórias.
+            Organize receitas, cardápio e gere lista de compras.
           </p>
         </article>
       </a>
@@ -256,8 +254,7 @@ Rotina 14 dias</div>
             </div>
           </div>
           <p class="card-text">
-            Veja o que tem em casa, marque o que acabou e gere listas de compras por ambiente
-            (despensa, freezer, hortifruti, etc.).
+            Veja o que tem em casa, marque o que acabou e gere listas de compras por ambiente.
           </p>
         </article>
       </a>
@@ -269,6 +266,29 @@ Rotina 14 dias</div>
   </div>
 
 
+
+
+  <script>
+    // Registro do Service Worker (necessário para instalação como app)
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js", { scope: "./" }).catch(console.error);
+      });
+    }
+
+    // Botão "Atualizar app" – força verificar atualização do SW e recarrega
+    async function atualizarApp() {
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) return location.reload();
+        await reg.update();
+        if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        setTimeout(() => location.reload(), 300);
+      } catch (e) {
+        location.reload();
+      }
+    }
+  </script>
 
 </body>
 </html>
