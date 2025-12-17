@@ -1,12 +1,22 @@
 {
   "name": "Vida Fibro — Rotina, Cardápio e Inventário",
   "short_name": "Vida Fibro",
-  "start_url": "index.html",
+  "start_url": "./",
   "display": "standalone",
   "theme_color": "#4b7bec",
   "background_color": "#f5f5fa",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "scope": "./",
+  "id": "./"
 }
