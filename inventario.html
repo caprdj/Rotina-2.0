@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Inventário da Casa — Fibro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#4b7bec" />
 
   <style>
@@ -54,47 +54,57 @@
 /* Header layout (título + botões em “pill”) */
 header.top-header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.75rem;
 }
 header.top-header .header-left {
-  flex: 1;
-  min-width: 220px;
+  min-width: 0;
 }
 header.top-header .header-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.55rem;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
-    .tabs {
-      display: flex;
-      margin-top: 0.75rem;
-      gap: 0.5rem;
-    }
+    /* Tabs (Inventário / Lista de compras) – estilo “segmented” */
+.tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background: #eef2ff;
+  border-radius: 18px;
+}
 
-    .tab-btn {
-      flex: 1;
-      padding: 0.5rem;
-      border-radius: 999px;
-      border: 1px solid #ddd;
-      background: #f3f3fa;
-      font-size: 0.85rem;
-      text-align: center;
-      cursor: pointer;
-    }
+.tab-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  color: #4b4b4b;
+  white-space: nowrap; /* mantém “Lista de compras” em uma linha */
+}
 
-    .tab-btn.active {
-      background: #4b7bec;
-      color: #fff;
-      border-color: #4b7bec;
-      font-weight: 600;
-    }
+.tab-btn.active {
+  background: #ffffff;
+  color: var(--primary);
+  border-color: #dfe6ff;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
 
+@media (max-width: 360px) {
+  .tab-btn { font-size: 0.82rem; padding: 0.5rem 0.6rem; }
+}
     main {
       flex: 1;
       padding: 0.8rem 1.2rem 1.2rem;
@@ -108,29 +118,39 @@ header.top-header .header-actions {
       display: block;
     }
 
-    .chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 0.75rem;
-    }
+    /* Chips (ambientes / modos) – estilo igual ao do Cardápio */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.2rem;
+  padding: 0.55rem;
+  background: #eef2ff;
+  border-radius: 18px;
+}
 
-    .chip {
-      padding: 0.25rem 0.6rem;
-      border-radius: 999px;
-      border: 1px solid #ddd;
-      background: #fff;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
+.chip {
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #4b4b4b;
+  white-space: nowrap;
+}
 
-    .chip.active {
-      background: #4b7bec;
-      color: #fff;
-      border-color: #4b7bec;
-      font-weight: 600;
-    }
+.chip.active {
+  background: #ffffff;
+  color: var(--primary);
+  border-color: #dfe6ff;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
 
+@media (max-width: 360px) {
+  .chip { font-size: 0.82rem; padding: 0.45rem 0.75rem; }
+}
     .summary-bar {
       font-size: 0.75rem;
       color: #555;
@@ -433,25 +453,27 @@ header.top-header .header-actions {
 .btn-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.9rem;
+  gap: 0.45rem;
+  padding: 0.55rem 1.05rem;
   border-radius: 999px;
-  border: 1px solid var(--primary);
-  background: transparent;
+  border: 2px solid var(--primary);
+  background: #ffffff;
   color: var(--primary);
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  width: fit-content;
 }
 
 .btn-pill .icon {
-  font-size: 0.85rem;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .btn-pill:active {
   background: var(--pill-bg);
 }
-
   </style>
 </head>
 <body>
@@ -465,27 +487,27 @@ header.top-header .header-actions {
 
   <div class="header-actions">
     <button type="button" class="btn-pill" id="btnHome" title="Ir para a tela inicial">
-      <span class="icon">🏠</span>
-      Início
-    </button>
+      <span class="icon">🏠</span></button>
+    <button type="button" class="btn-pill" id="btnUpdate" title="Buscar atualização do app">
+      <span class="icon">🔄</span></button>
     <button type="button" class="btn-pill" id="btnBackup" title="Baixar backup (JSON)">
-      <span class="icon">📤</span>
-      Backup
+      <span class="icon">📤</span> Backup
     </button>
     <button type="button" class="btn-pill" id="btnRestore" title="Restaurar backup (JSON)">
-      <span class="icon">📥</span>
-      Restaurar
+      <span class="icon">📥</span> Restaurar
     </button>
+      
+
     <input type="file" id="restoreFile" accept="application/json" style="display:none" />
   </div>
-</header>
 
 
-    <main>
-      <!-- TAB INVENTÁRIO -->
-      <section id="tab-inventario" class="tab-panel active">
-        <!-- Selector de ambiente -->
-        <div class="chip-row">
+  <div class="tabs" id="mainTabs">
+    <button class="tab-btn active" data-tab="inventario">📦 Inventário</button>
+    <button class="tab-btn" data-tab="compras">🗒️ Lista de compras</button>
+  </div>
+
+<div class="chip-row" id="envRow">
           <button class="chip" data-env="hortifruti">🥗 Hortifruti</button>
           <button class="chip" data-env="laticinios">🧀 Laticínios & ovos</button>
           <button class="chip" data-env="freezer">❄️ Freezer</button>
@@ -495,6 +517,20 @@ header.top-header .header-actions {
           <button class="chip" data-env="area">🧺 Área de serviço</button>
           <button class="chip" data-env="farmacia">💊 Farmácia</button>
         </div>
+
+<div class="chip-row" id="shoppingModeRow" style="display:none">
+          <button class="chip active" data-shop="geral">📝 Lista geral</button>
+          <button class="chip" data-shop="dia">🛒 Compra do dia</button>
+          <button class="chip" data-shop="kit">🌙 Kit fim de semana</button>
+        </div>
+
+</header>
+
+
+    <main>
+      <!-- TAB INVENTÁRIO -->
+      <section id="tab-inventario" class="tab-panel active">
+        
 
         <!-- Resumo do ambiente -->
         <div class="summary-bar">
@@ -509,11 +545,7 @@ header.top-header .header-actions {
 
       <!-- TAB LISTA DE COMPRAS -->
       <section id="tab-compras" class="tab-panel">
-        <div class="chip-row" id="shoppingModeRow">
-          <button class="chip active" data-shop="geral">📝 Lista geral</button>
-          <button class="chip" data-shop="dia">🛒 Compra do dia</button>
-          <button class="chip" data-shop="kit">🌙 Kit fim de semana</button>
-        </div>
+        
         <div id="shoppingList"></div>
       </section>
     </main>
@@ -583,6 +615,7 @@ header.top-header .header-actions {
 const btnHome = document.getElementById("btnHome");
 const btnBackup = document.getElementById("btnBackup");
 const btnRestore = document.getElementById("btnRestore");
+      const btnUpdate = document.getElementById("btnUpdate");
 const restoreFile = document.getElementById("restoreFile");
 
 if (btnHome) {
@@ -632,6 +665,34 @@ function applyRestoredState(newState) {
   setActiveEnvChip();
   renderInventory();
   renderShoppingList();
+}
+
+function atualizarApp() {
+  try {
+    if (!("serviceWorker" in navigator)) {
+      location.reload();
+      return;
+    }
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) {
+        location.reload();
+        return;
+      }
+      reg.update().finally(() => {
+        if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        // pequeno cache-bust para garantir que o HTML novo venha
+        const url = new URL(location.href);
+        url.searchParams.set("v", Date.now().toString());
+        location.replace(url.toString());
+      });
+    });
+  } catch (e) {
+    location.reload();
+  }
+}
+
+if (btnUpdate) {
+  btnUpdate.addEventListener("click", atualizarApp);
 }
 
 if (btnBackup) {
@@ -778,10 +839,9 @@ if (btnRestore && restoreFile) {
           { id: "sardinha", name: "Sardinha", group: "Temperos & conservas", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "atum-natural", name: "Atum ralado natural", group: "Temperos & conservas", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "milho-enlatado", name: "Milho (enlatado)", group: "Temperos & conservas", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
+ { id: "thine", name: "Tahine", group: "Outros secos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "quadradinho-70", name: "Quadradinho 70%", group: "Snacks & doces", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "pacoca-nuts", name: "Paçoca nuts integral", group: "Snacks & doces", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
           { id: "spa-vovo", name: "Spa vovó", group: "Outros secos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "mac", name: "Mac", group: "Outros secos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
         ],
@@ -789,10 +849,8 @@ if (btnRestore && restoreFile) {
         cozinha: [
           { id: "detergente", name: "Detergente", group: "Louça & pia", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "ype-louca", name: "Ypê louça", group: "Louça & pia", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
           { id: "esponja", name: "Esponja", group: "Panos & apoio", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "perfex", name: "Perfex", group: "Panos & apoio", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
           { id: "papel-toalha", name: "Papel toalha", group: "Descartáveis", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "guardanapo", name: "Guardanapo", group: "Descartáveis", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "plastico-filme", name: "Plástico filme", group: "Descartáveis", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
@@ -806,7 +864,9 @@ if (btnRestore && restoreFile) {
         banheiro: [
           { id: "papel-higienico", name: "Papel higiênico", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "saco-lixo-banheiro", name: "Saco de lixo banheiro", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-          { id: "sabonete-maos", name: "Sabonete para mãos", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
+          { id: "sabonete-maos", name: "Sabonete para mãos", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "pastad", name: "Pasta de dente", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "escovad", name: "Escova de dente", group: "Higiene & papel", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
         ],
 
         area: [
@@ -815,7 +875,6 @@ if (btnRestore && restoreFile) {
           { id: "vanish-liq", name: "Vanish liq", group: "Lavanderia", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "surf-coco-po", name: "Surf coco pó", group: "Lavanderia", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "sabao-barra", name: "Sabão barra", group: "Lavanderia", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
           { id: "agua-sanitaria", name: "Água sanitária", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "desinfetante", name: "Desinfetante", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "cif", name: "Cif", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
@@ -824,7 +883,6 @@ if (btnRestore && restoreFile) {
           { id: "desembala-vidro", name: "Desembala vidro", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "desembala-desengo", name: "Desembala desengo", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "desembala-multiuso", name: "Desembala multiuso", group: "Limpeza pesada", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
           { id: "saco-lixo-50l", name: "Saco de lixo 50 L", group: "Sacos de lixo", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "saco-sacole", name: "Saco sacole", group: "Sacos de lixo", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
         ],
@@ -833,9 +891,20 @@ if (btnRestore && restoreFile) {
           { id: "puran", name: "Puran", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "bup", name: "Bup", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "sertralina", name: "Sertralina", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-
+{ id: "kali", name: "Kalist", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "glifa", name: "Glifage", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "ruso", name: "Rusovastatina", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "quet", name: "Quetiapina", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "om3", name: "Ômega 3", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "vd", name: "Vitamina D", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "dip", name: "Dipirona 1g", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "aciclo", name: "Aciclovir", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "hidramao", name: "Hidratante 🫲🏻", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "hidraunha", name: "Hidratane 💅🏻", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "hidraboca", name: "Hidratante 👄", group: "Medicamentos", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
           { id: "shampoo", name: "Shampoo", group: "Higiene", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
-          { id: "condicionador", name: "Condicionador", group: "Higiene", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
+          { id: "condicionador", name: "Condicionador", group: "Higiene", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null },
+{ id: "protd", name: "Protetor diário", group: "Higiene", status: "ok", qty: 0, unit: "UN", shoppingToday: false, weekendKit: false, tagHealth: null }
         ]
       };
 
@@ -865,18 +934,31 @@ if (btnRestore && restoreFile) {
           const thisTab = btn.getAttribute("data-tab");
           btn.classList.toggle("active", thisTab === tabId);
         });
+
         Object.keys(tabPanels).forEach(key => {
           const panel = tabPanels[key];
           if (!panel) return;
           panel.classList.toggle("active", key === tabId);
         });
+
+        // alterna controles do topo conforme a aba
+        const envRowEl = document.getElementById("envRow");
+        const shopRowEl = document.getElementById("shoppingModeRow");
+        if (envRowEl) envRowEl.style.display = (tabId === "inventario") ? "flex" : "none";
+        if (shopRowEl) shopRowEl.style.display = (tabId === "compras") ? "flex" : "none";
       }
 
       tabButtons.forEach(btn => {
         btn.addEventListener("click", () => {
           const tabId = btn.getAttribute("data-tab");
-          if (!tabId) return;
           setActiveTab(tabId);
+
+          // garante render ao trocar de aba
+          if (tabId === "inventario") {
+            renderInventory();
+          } else {
+            renderShoppingList();
+          }
         });
       });
 
@@ -1409,8 +1491,7 @@ if (btnRestore && restoreFile) {
     // ===================== REGISTRO DO SERVICE WORKER =====================
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("sw.js")
+        navigator.serviceWorker.register("./sw.js", { scope: "./" })
           .catch((err) => {
             console.warn("Falha ao registrar service worker:", err);
           });
