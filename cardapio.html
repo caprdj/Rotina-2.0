@@ -605,58 +605,135 @@
     }
     .pill-btn .icon{font-size:0.9em; line-height:1;}
 
-    /* =========================
-       MOBILE (celular) — ajustes de botões
-       ========================= */
-    @media (max-width: 640px) {
-      /* Top actions (🏠 Início / 📤 Backup / 📥 Restaurar) — sempre na mesma linha */
-      .top-actions.nav-row { 
-        flex-wrap: nowrap;
-        gap: 8px;
-        width: 100%;
-      }
-      .top-actions.nav-row .pill-btn.main{
-        flex: 1 1 0;
-        min-width: 0;
-        justify-content: center;
-        padding: 10px 10px;
-        gap: 6px;
-        font-size: 0.88rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
 
-      .top-actions.nav-row .pill-btn.icon-only{
-        flex: 0 0 auto;
-        width: 44px;
-        min-width: 44px;
-        padding: 10px 0;
-        justify-content: center;
-      }
 
-      /* Tabs (Sugestões / Receitas / Dia / Resumo / Lista) — 2 linhas, sem rolagem horizontal */
-      .tabs{
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 0.5rem;
-        overflow-x: visible;
-      }
-      .tabs .tab-btn{
-        width: 100%;
-        justify-content: center;
-        padding: 0.55rem 0.35rem;
-        font-size: 0.88rem;
-      }
-      .tabs .tab-btn:nth-child(1),
-      .tabs .tab-btn:nth-child(2),
-      .tabs .tab-btn:nth-child(3){
-        grid-column: span 2; /* 3 botões na 1ª linha */
-      }
-      .tabs .tab-btn:nth-child(4),
-      .tabs .tab-btn:nth-child(5){
-        grid-column: span 3; /* 2 botões na 2ª linha */
-      }
-    }
+/* === UI Pills (ações x seleção) === */
+
+:root{
+  --ui-accent: #4b7bec;
+  --ui-soft: #eef2ff;
+  --ui-shadow: 0 10px 26px rgba(0,0,0,.12);
+  --ui-shadow-sm: 0 8px 18px rgba(0,0,0,.12);
+}
+
+/* =========================
+   AÇÕES (clique único)
+   Ex.: Início / Backup / Restaurar / Atualizar
+========================= */
+.btn-pill, .pill-btn, .action-pill{
+  background:#fff;
+  border:2px solid var(--ui-accent);
+  color:var(--ui-accent);
+  border-radius:90px;
+  padding:10px 14px;
+  font-weight:500;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+  white-space:nowrap;
+  line-height:1;
+}
+
+.btn-pill .icon, .pill-btn .icon, .action-pill .icon{
+  font-size:18px;
+  line-height:1;
+}
+
+.btn-pill:hover, .pill-btn:hover, .action-pill:hover{
+  background:var(--ui-soft);
+}
+.btn-pill:active, .pill-btn:active, .action-pill:active{
+  transform: translateY(1px);
+}
+
+/* Layout das barras de ações (pills no tamanho do conteúdo) */
+.header-actions, .top-actions.nav-row, .action-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.header-actions > button, .top-actions.nav-row > button, .action-row > button{
+  flex:0 0 auto;
+}
+@media (max-width:420px){
+  .btn-pill, .pill-btn, .action-pill{ padding:9px 10px; gap:6px; }
+}
+
+/* =========================
+   SELEÇÃO (botões selecionáveis)
+   Ex.: Alta/Baixa; Casa/Viagem/Find/Pausa; abas Sugestões/Receitas/Dia/Resumo/Compras
+========================= */
+.pill-group, .tabs, .segmented{
+  background:var(--ui-soft);
+  border-radius:9px;
+  padding:8px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:space-between;
+  box-shadow: var(--ui-shadow);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* botões dentro dos grupos */
+.chip, .tab-btn, .seg-btn{
+  border:none;
+  background:transparent;
+  color: var(--text-muted, var(--muted, #666));
+  border-radius:9999px;
+  padding:10px 12px;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+  min-width:0;
+  line-height:1;
+}
+
+/* selecionado */
+.chip.active, .tab-btn.active, .seg-btn.active{
+  background:#fff;
+  color:var(--ui-accent);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+/* variação "pausa"/perigo */
+.chip.danger{ color: var(--danger, #eb3b5a); }
+.chip.danger.active{ color: var(--danger, #eb3b5a); }
+
+.header-tabs{ margin-top:10px; }
+
+/* Tabs do Cardápio em 2 linhas: 3 em cima, 2 embaixo */
+.tabs{
+  flex-wrap:wrap;
+  width:100%;
+}
+.tabs .tab-btn{
+  flex:1 1 calc(33.333% - 8px);
+}
+.tabs .tab-btn:nth-child(n+4){
+  flex-basis: calc(50% - 8px);
+}
+@media (max-width:360px){
+  .tabs .tab-btn{ padding:9px 10px; }
+}
+
+
+/* Se a tela for estreita demais, encurta sem quebrar a linha */
+.btn-pill, .pill-btn, .action-pill{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 
 </style>
 </head>
@@ -671,37 +748,25 @@
   </div>
 
   <div class="top-actions nav-row">
-    <button type="button" class="btn pill-btn main" onclick="window.location.href='index.html'" title="Início">
+    <button type="button" class="btn pill-btn" onclick="window.location.href='index.html'" title="Início">
       <span class="icon">🏠</span> Início
     </button>
-    <button id="btnBackupExport" class="btn pill-btn main" type="button" title="Baixar um arquivo com seus dados">
+    <button id="btnBackupExport" class="btn pill-btn" type="button" title="Baixar um arquivo com seus dados">
       <span class="icon">📤</span> Backup
     </button>
-    <button id="btnBackupImport" class="btn pill-btn main" type="button" title="Restaurar dados a partir de um arquivo">
+    <button id="btnBackupImport" class="btn pill-btn" type="button" title="Restaurar dados a partir de um arquivo">
       <span class="icon">📥</span> Restaurar
-    </button>
-
-    <button id="btnUpdateApp" class="btn pill-btn icon-only" type="button" title="Atualizar app" aria-label="Atualizar app">
-      <span class="icon">🔄</span>
-    </button>
-    <button id="btnInstallApp" class="btn pill-btn icon-only" type="button" title="Instalar app" aria-label="Instalar app" style="display:none">
-      <span class="icon">📲</span>
     </button>
     <input id="backupFile" type="file" accept="application/json" style="display:none" />
   </div>
-</header>
-
-    
-    
-
-    <div class="tabs">
+<div class="tabs header-tabs">
   <button class="tab-btn active" data-tab="tabSugestoes">✨ Sugestões</button>
   <button class="tab-btn" data-tab="tabReceitas">📖 Receitas</button>
   <button class="tab-btn" data-tab="tabSemana">📅 Dia</button>
   <button class="tab-btn" data-tab="tabResumo">📊 Resumo</button>
   <button class="tab-btn" data-tab="tabCompras">🛒 Lista de compras</button>
 </div>
-
+</header>
 
 <!-- TAB SUGESTÕES -->
 <section id="tabSugestoes" class="tab-panel active">
@@ -740,7 +805,11 @@
           <option value="lanche">☀️ Lanche</option>
           <option value="ceia">🌒 Ceia</option>
           <option value="petisco">🍷 Petisco</option>
-        </select>
+        
+      <option value="saladas">🥗 Saladas</option>
+      <option value="molhos">🥣 Molhos</option>
+      <option value="temperos">🧂 Temperos</option>
+</select>
 
 
   </div>
@@ -768,13 +837,10 @@
 </div>
 
 <div style="margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:0.5rem;">
-  <button class="btn primary" id="btnGerarSugestoes">🪄 Sugerir</button>
-<button class="btn" id="btnMostrarTudo" type="button">
-  ✨Filtrar
-</button>
+  <button class="btn" id="btnMostrarTudo" type="button">✨Filtrar</button>
   <button class="btn sm" id="btnVisitasEmCasa">👨‍👩‍👧‍👦 Visitas</button>
   <button class="btn sm" id="btnTenhoIngredientes">🧺 Tenho esses ingredientes</button>
-  
+  <button class="btn primary" id="btnGerarSugestoes">🪄 Sugerir</button>
 </div>
 
 <div id="suggestionsContainer" style="margin-top:0.75rem;"></div>
@@ -833,7 +899,11 @@
       <option value="lanche">☀️ Lanche</option>
       <option value="ceia">🌒 Ceia</option>
       <option value="petisco">🍷 Petisco</option>
-    </select>
+    
+      <option value="saladas">🥗 Saladas</option>
+      <option value="molhos">🥣 Molhos</option>
+      <option value="temperos">🧂 Temperos</option>
+</select>
 
   </div>
 </div>
@@ -2150,7 +2220,7 @@ let recipes = [...INITIAL_RECIPES];
      // ==== BACKUP (EXPORTAR / IMPORTAR) ====
   const btnBackupExport = document.getElementById("btnBackupExport");
   const btnBackupImport = document.getElementById("btnBackupImport");
-  const backupFileInput = document.getElementById("backupFileInput");
+  const backupFileInput = document.getElementById("backupFile");
 
   function exportBackup() {
     try {
@@ -2330,7 +2400,7 @@ renderResumoStats();
 function normalizeRecipes(rawRecipes) {
   if (!Array.isArray(rawRecipes)) return [];
 
-  const validMealTypes = ["principal", "sobremesa", "lanche", "ceia", "petisco"];
+  const validMealTypes = ["principal", "cafe", "sobremesa", "lanche", "ceia", "petisco", "saladas", "molhos", "temperos"];
 
   return rawRecipes.map((raw) => {
     const copy = { ...raw };
@@ -2361,7 +2431,7 @@ function normalizeRecipes(rawRecipes) {
     copy.receita = receita; // campo em português
     copy.kind = receita;    // mantém compatível com o resto do código
 
-    // -------- 2. TIPO DE REFEIÇÃO (principal, café, sobremesa, lanche, ceia, petisco) --------
+    // -------- 2. TIPO DE REFEIÇÃO (principal, café, sobremesa, lanche, ceia, petisco, saladas, molhos, temperos) --------
     // Pode vir como: raw.refeicao, raw.work, raw.mealType, etc.
     let refeicaoRaw =
       (raw.refeicao ?? raw.work ?? raw.mealType ?? "").toString().trim().toLowerCase();
@@ -2522,7 +2592,7 @@ function normalizeRecipes(rawRecipes) {
             ? parsed.mealCompliance
             : {};
 
-        normalizeRecipes();
+        state.recipes = normalizeRecipes(state.recipes);
         normalizeWeeklyPlans();
         normalizeShoppingLists();
       } else {
@@ -2538,7 +2608,7 @@ function normalizeRecipes(rawRecipes) {
         state.recipeStats = {};
         state.mealCompliance = {};
 
-        normalizeRecipes();
+        state.recipes = normalizeRecipes(state.recipes);
         normalizeWeeklyPlans();
         normalizeShoppingLists();
       }
@@ -2969,7 +3039,7 @@ function weekdayForDayIndex(dayIndex) {
         state.recipes.push(baseRecipe);
       }
 
-      normalizeRecipes();
+      state.recipes = normalizeRecipes(state.recipes);
       saveState();
 
       if (filterFav) filterFav.value = "";
@@ -3263,7 +3333,7 @@ function applySuggestFiltersToList(list) {
     });
   }
 
-  // --- 2. TIPO DE REFEIÇÃO (principal, café, sobremesa, lanche, ceia, petisco) ---
+  // --- 2. TIPO DE REFEIÇÃO (principal, café, sobremesa, lanche, ceia, petisco, saladas, molhos, temperos) ---
   if (f.work && f.work !== "tanto-faz") {
     filtered = filtered.filter((r) => {
       const refeicao = r.refeicao || r.work || "principal";
@@ -4403,76 +4473,6 @@ updateSuggestContextText();
   }
 
 
-
-
-  /* =========================
-     PWA — Instalar e Atualizar
-     ========================= */
-
-  // --- Instalar (Android/Chrome) ---
-  let deferredInstallPrompt = null;
-  const btnInstallApp = document.getElementById("btnInstallApp");
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    // impede o mini-infobar automático e guarda o evento para usar no botão
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    if (btnInstallApp) btnInstallApp.style.display = "inline-flex";
-  });
-
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    if (btnInstallApp) btnInstallApp.style.display = "none";
-  });
-
-  if (btnInstallApp) {
-    btnInstallApp.addEventListener("click", async () => {
-      if (!deferredInstallPrompt) return;
-      btnInstallApp.disabled = true;
-      deferredInstallPrompt.prompt();
-      try { await deferredInstallPrompt.userChoice; } catch(e) {}
-      deferredInstallPrompt = null;
-      btnInstallApp.style.display = "none";
-      btnInstallApp.disabled = false;
-    });
-  }
-
-  // --- Atualizar (força buscar versão nova + tenta atualizar SW) ---
-  const btnUpdateApp = document.getElementById("btnUpdateApp");
-
-  async function requestAppUpdate() {
-    // 1) tenta atualizar o Service Worker (se existir)
-    if ("serviceWorker" in navigator) {
-      try {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          await reg.update();
-          if (reg.waiting) {
-            // depende de sw.js ter o handler SKIP_WAITING (veja instruções abaixo)
-            reg.waiting.postMessage({ type: "SKIP_WAITING" });
-          }
-        }
-      } catch (err) {
-        console.log("Falha ao atualizar SW:", err);
-      }
-    }
-
-    // 2) recarrega com cache-bust para evitar conteúdo antigo
-    const u = new URL(location.href);
-    u.searchParams.set("v", String(Date.now()));
-    location.replace(u.toString());
-  }
-
-  if (btnUpdateApp) btnUpdateApp.addEventListener("click", requestAppUpdate);
-
-  // quando o SW novo assumir o controle, recarrega a página (evita ficar preso na versão antiga)
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (window.__reloadingOnSW) return;
-      window.__reloadingOnSW = true;
-      location.reload();
-    });
-  }
 
 </script>
 
