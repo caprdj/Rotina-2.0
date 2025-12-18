@@ -1108,41 +1108,16 @@
 
 
 <script>
-
-(() => {
-  "use strict";
-
+(function() {
   const STORAGE_KEY = "cardapioMaeState_v7";
+  const FONT_KEY = "cardapioMaeFontSize";
 
-  const $ = (id) => document.getElementById(id);
+    
 
-  // Elements
-  const tabBtns = Array.from(document.querySelectorAll(".tab-btn"));
-  const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
 
-  const recipesListEl = $("recipesList");
-  const recipeSearchEl = $("recipeSearch");
-  const btnNovaReceita = $("btnNovaReceita");
-  const recipeModal = $("recipeModal");
-  const btnCloseRecipeModal = $("btnCloseRecipeModal");
-  const btnSaveRecipe = $("btnSaveRecipe");
+  const WEEKDAYS_SHORT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
-  const btnBackupExport = $("btnBackupExport");
-  const btnBackupImport = $("btnBackupImport");
-  const backupFile = $("backupFile");
-
-  // Recipe form fields
-  const f_id = $("recipeId");
-  const f_name = $("recipeName");
-  const f_type = $("recipeType");
-  const f_protein = $("recipeProtein");
-  const f_time = $("recipeTime");
-  const f_ingredients = $("recipeIngredients");
-  const f_instructions = $("recipeInstructions");
-  const f_link = $("recipeLink");
-  const f_fav = $("recipeFavorite");
-
-  const INITIAL_RECIPES = [
+ const INITIAL_RECIPES = [
      {
     "id": "recipe-1",
     "name": "Escondidinho de carne picada de peru",
@@ -1813,7 +1788,7 @@
   {
     "id": "curcuma-com-pimenta-do-reino",
     "name": "Cúrcuma + pimenta-do-reino",
-    "receita": "tanto faz",
+    "receita": "tanto-faz",
     "refeicao": "tempero",
     "proteina": "veg",
     "ingredients": [
@@ -2867,256 +2842,2199 @@
   }
 ];
 
-  function safeParse(json, fallback) {
-    try { return JSON.parse(json); } catch { return fallback; }
-  }
 
-  function loadState() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const st = safeParse(raw, null);
-    if (st && typeof st === "object") {
-      // minimal shape checks
-      if (!Array.isArray(st.recipes)) st.recipes = [];
-      if (!st.dayMeals || typeof st.dayMeals !== "object") st.dayMeals = {};
-      return st;
+  
+let recipes = [...INITIAL_RECIPES];
+
+    let state = {
+    recipes: [],
+    weeklyPlans: [],
+    selectedWeekIndex: 0,
+    shoppingLists: {},
+    startWeekdayIndex: 0,
+    recipeStats: {},         // estatísticas por receita
+    mealCompliance: {}       // NOVO: acompanhamento das refeições (segui/pulei/etc)
+  };
+
+
+
+     // ==== BACKUP (EXPORTAR / IMPORTAR) ====
+  const btnBackupExport = document.getElementById("btnBackupExport");
+  const btnBackupImport = document.getElementById("btnBackupImport");
+  const backupFileInput = document.getElementById("backupFile");
+
+  function exportBackup() {
+    try {
+      // monta só os dados importantes
+      const data = {
+  recipes: state.recipes || [],
+  weeklyPlans: state.weeklyPlans || [],
+  selectedWeekIndex:
+    typeof state.selectedWeekIndex === "number" ? state.selectedWeekIndex : 0,
+  shoppingLists: state.shoppingLists || {},
+  startWeekdayIndex:
+    typeof state.startWeekdayIndex === "number" ? state.startWeekdayIndex : 0,
+  recipeStats: state.recipeStats || {},
+  mealCompliance: state.mealCompliance || {}
+};
+
+
+
+      const raw = JSON.stringify(data, null, 2);
+
+      // tenta baixar em arquivo .json
+      try {
+        if (window.Blob && window.URL && URL.createObjectURL) {
+          const blob = new Blob([raw], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "cardapio-backup.json";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          // mensagem simples pra sua mãe
+          alert("Backup gerado! Procure pelo arquivo 'cardapio-backup.json' na pasta de downloads.");
+        } else {
+          // fallback bem raro: mostra o texto do backup
+          alert(
+            "Seu navegador não permite baixar o arquivo automaticamente.\n\n" +
+            "Copie o texto a seguir e salve em um arquivo chamado 'cardapio-backup.json':\n\n" +
+            raw
+          );
+        }
+      } catch (e) {
+        console.warn("Falha no download automático do backup:", e);
+        alert(
+          "Não foi possível baixar o arquivo automaticamente.\n\n" +
+          "Copie o texto a seguir e salve em um arquivo chamado 'cardapio-backup.json':\n\n" +
+          raw
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao gerar o backup: " + (e.message || e));
     }
-    return {
-      recipes: Array.isArray(INITIAL_RECIPES) ? [...INITIAL_RECIPES] : [],
-      dayMeals: {}
+  }
+
+  function importBackupFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+      try {
+        const text = ev.target.result;
+        // valida se é JSON
+        JSON.parse(text);
+        // grava no localStorage
+        localStorage.setItem(STORAGE_KEY, text);
+renderResumoStats();
+        alert("Backup restaurado com sucesso. O app será recarregado.");
+        location.reload();
+      } catch (e) {
+        console.error(e);
+        alert("Arquivo de backup inválido.");
+      }
     };
+    reader.readAsText(file);
   }
 
-  const state = loadState();
-
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (btnBackupExport) {
+    btnBackupExport.addEventListener("click", exportBackup);
   }
 
-  // Tabs
-  function activateTab(tabId) {
-    tabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
-    tabPanels.forEach(p => p.classList.toggle("active", p.id === tabId));
-  }
-  tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b.dataset.tab)));
+  if (btnBackupImport && backupFileInput) {
+    btnBackupImport.addEventListener("click", () => {
+      backupFileInput.value = "";
+      backupFileInput.click();
+    });
 
-  // Modal
-  function openModal() {
-    if (!recipeModal) return;
-    recipeModal.classList.add("open");
-    recipeModal.setAttribute("aria-hidden","false");
-  }
-  function closeModal() {
-    if (!recipeModal) return;
-    recipeModal.classList.remove("open");
-    recipeModal.setAttribute("aria-hidden","true");
-  }
-
-  function slugify(s) {
-    return String(s||"")
-      .toLowerCase()
-      .normalize("NFD").replace(/\p{Diacritic}/gu,"")
-      .replace(/[^a-z0-9]+/g,"-")
-      .replace(/(^-|-$)/g,"")
-      .slice(0,80) || ("r-"+Date.now());
-  }
-
-  function normalizeRecipe(r) {
-    const o = {...r};
-    o.id = o.id || slugify(o.name || "receita");
-    o.name = (o.name || "").trim() || "Sem nome";
-    o.type = (o.type || "refeicao").trim(); // refeicao | lanche | petisco | sobremesa
-    o.timeClass = (o.timeClass || "curto").trim(); // curto | medio | longo
-    o.protein = (o.protein || "veg").trim();
-    o.ingredients = Array.isArray(o.ingredients) ? o.ingredients : (String(o.ingredients||"").split(/\n|,/).map(s=>s.trim()).filter(Boolean));
-    o.instructions = (o.instructions || "").trim();
-    o.link = (o.link || "").trim();
-    o.favorite = !!o.favorite;
-    return o;
-  }
-
-  function setFormFromRecipe(r) {
-    f_id.value = r.id || "";
-    f_name.value = r.name || "";
-    f_type.value = r.type || "refeicao";
-    f_protein.value = r.protein || "veg";
-    f_time.value = r.timeClass || "curto";
-    f_ingredients.value = Array.isArray(r.ingredients) ? r.ingredients.join("\n") : (r.ingredients||"");
-    f_instructions.value = r.instructions || "";
-    f_link.value = r.link || "";
-    f_fav.checked = !!r.favorite;
-  }
-
-  function readRecipeFromForm() {
-    return normalizeRecipe({
-      id: f_id.value.trim() || undefined,
-      name: f_name.value,
-      type: f_type.value,
-      protein: f_protein.value,
-      timeClass: f_time.value,
-      ingredients: f_ingredients.value,
-      instructions: f_instructions.value,
-      link: f_link.value,
-      favorite: f_fav.checked
+    backupFileInput.addEventListener("change", () => {
+      const file = backupFileInput.files[0];
+      if (!file) return;
+      if (!file.name.endsWith(".json")) {
+        alert("Escolha um arquivo .json de backup.");
+        return;
+      }
+      importBackupFromFile(file);
     });
   }
 
-  function renderRecipes() {
-    if (!recipesListEl) return;
-    const q = (recipeSearchEl?.value || "").trim().toLowerCase();
-    const list = state.recipes
-      .map(normalizeRecipe)
-      .filter(r => {
-        if (!q) return true;
-        const hay = [
-          r.name,
-          r.type,
-          r.timeClass,
-          r.protein,
-          r.instructions,
-          r.link,
-          ...(r.ingredients||[])
-        ].join(" ").toLowerCase();
-        return hay.includes(q);
-      })
-      .sort((a,b) => (b.favorite?1:0)-(a.favorite?1:0) || a.name.localeCompare(b.name,"pt-BR"));
 
+
+
+
+  const mealTypes = ["almoco", "jantar", "lanche", "petisco"];
+  let currentMealType = "almoco";
+
+  let currentModalMode = null;
+  let modalRecipeToAddId = null;
+
+  function normalizeLink(url) {
+    if (!url) return "";
+    url = url.trim();
+    if (!url) return "";
+    if (/^https?:\/\//i.test(url)) return url;
+    return "https://" + url;
+  }
+
+  const btnFontUp = document.getElementById("btnFontUp");
+  const btnFontDown = document.getElementById("btnFontDown");
+  let fontSize = 17;
+
+  function applyFontSize() {
+    document.documentElement.style.setProperty("--base-font-size", fontSize + "px");
+    try {
+      localStorage.setItem(FONT_KEY, String(fontSize));
+    } catch (e) {
+      console.warn("Não foi possível salvar tamanho da fonte:", e);
+    }
+  }
+
+  (function loadFontSize() {
+    try {
+      const stored = localStorage.getItem(FONT_KEY);
+      if (stored) {
+        const n = parseInt(stored, 10);
+        if (!isNaN(n) && n >= 14 && n <= 22) fontSize = n;
+      }
+    } catch (e) {}
+    applyFontSize();
+  })();
+
+  if (btnFontUp) {
+    btnFontUp.addEventListener("click", () => {
+      if (fontSize < 22) {
+        fontSize++;
+        applyFontSize();
+      }
+    });
+  }
+
+  if (btnFontDown) {
+    btnFontDown.addEventListener("click", () => {
+      if (fontSize > 14) {
+        fontSize--;
+        applyFontSize();
+      }
+    });
+  }
+
+  function createDefaultWeeklyPlans() {
+    const arr = [];
+    for (let i = 0; i < 14; i++) {
+      arr.push({
+        name: "Dia " + (i + 1),
+        almoco: [],
+        jantar: [],
+        lanche: [],
+        petisco: []
+      });
+    }
+    return arr;
+  }
+
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+function normalizeRecipes(rawRecipes) {
+  if (!Array.isArray(rawRecipes)) return [];
+
+  const validMealTypes = ["principal", "cafe", "sobremesa", "lanche", "ceia", "petisco", "salada", "molho", "tempero"];
+
+  return rawRecipes.map((raw) => {
+    const copy = { ...raw };
+
+    // Garante ID
+    if (!copy.id) {
+      copy.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    // -------- 1. TIPO DE RECEITA (salgado / doce) --------
+    // Pode vir como: raw.receita, raw.kind, raw.tipo, etc.
+    let receitaRaw =
+      (raw.receita ?? raw.kind ?? raw.tipo ?? "").toString().trim().toLowerCase();
+
+    let receita;
+    if (receitaRaw.includes("doce")) receita = "doce";
+    else if (receitaRaw.includes("salg")) receita = "salgado";
+    else {
+      // fallback: tenta deduzir pelo nome/ingredientes
+      const fullText = `${raw.name || ""} ${(raw.ingredients || []).join(" ")}`.toLowerCase();
+      if (fullText.includes("bolo") || fullText.includes("torta") || fullText.includes("doce")) {
+        receita = "doce";
+      } else {
+        receita = "salgado";
+      }
+    }
+
+    copy.receita = receita; // campo em português
+    copy.kind = receita;    // mantém compatível com o resto do código
+
+    // -------- 2. TIPO DE REFEIÇÃO (principal, café, sobremesa, lanche, ceia, petisco, saladas, molhos, temperos) --------
+    // Pode vir como: raw.refeicao, raw.work, raw.mealType, etc.
+    let refeicaoRaw =
+      (raw.refeicao ?? raw.work ?? raw.mealType ?? "").toString().trim().toLowerCase();
+
+    // Normaliza alguns textos
+    if (refeicaoRaw.includes("café")) refeicaoRaw = "cafe";
+    if (refeicaoRaw.includes("lanche")) refeicaoRaw = "lanche";
+    if (refeicaoRaw.includes("sobrem")) refeicaoRaw = "sobremesa";
+    if (refeicaoRaw.includes("petisc")) refeicaoRaw = "petisco";
+    if (refeicaoRaw.includes("ceia")) refeicaoRaw = "ceia";
+    // Aceita singular também
+    if (refeicaoRaw.includes("salad")) refeicaoRaw = "salada";
+    if (refeicaoRaw.includes("molho")) refeicaoRaw = "molho";
+    if (refeicaoRaw.includes("tempero")) refeicaoRaw = "tempero";
+
+
+    let refeicao;
+    if (validMealTypes.includes(refeicaoRaw)) {
+      refeicao = refeicaoRaw;
+    } else {
+      // fallback:
+      // se é doce → assume sobremesa; senão → principal
+      refeicao = receita === "doce" ? "sobremesa" : "principal";
+    }
+
+    copy.refeicao = refeicao; // campo em português
+    copy.work = refeicao;     // mantém compatível com o resto do código
+
+
+     
+
+    // -------- 3. PROTEÍNA PRINCIPAL --------
+   // -------- 3. PROTEÍNA PRINCIPAL --------
+const proteinMap = {
+  frango: "frango",
+  "frango/peru": "frango",
+  peru: "frango",
+  galinha: "frango",
+
+  carne: "boi",
+  bovina: "boi",
+  bovino: "boi",
+  "carne vermelha": "boi",
+  boi: "boi",
+  vaca: "boi",
+
+  suina: "porco",
+  suíno: "porco",
+  suino: "porco",
+  porco: "porco",
+
+  peixe: "peixe",
+  atum: "peixe",
+  salmao: "peixe",
+  salmão: "peixe",
+  bacalhau: "peixe",
+  tilapia: "peixe",
+  tilápia: "peixe",
+
+  ovo: "ovo",
+  ovos: "ovo",
+
+  queijo: "laticinio",
+  ricota: "laticinio",
+  requeijao: "laticinio",
+  requeijão: "laticinio",
+  leite: "laticinio",
+  iogurte: "laticinio",
+  laticinio: "laticinio",
+  laticínio: "laticinio",
+  laticinios: "laticinio",
+  laticínios: "laticinio",
+
+  veg: "veg",
+  vegetal: "veg",
+  leguminosa: "veg",
+  legumes: "veg",
+  legume: "veg",
+  misto: "veg"
+};
+
+let proteinaRaw = (raw.proteina ?? raw.protein ?? "").toString().trim().toLowerCase();
+let proteina = proteinMap[proteinaRaw] || "veg";
+
+copy.proteina = proteina;  // mantém seu padrão PT
+copy.protein  = proteina;  // garante compatibilidade com o resto do app
+
+
+    // -------- 4. INGREDIENTES --------
+    if (!Array.isArray(copy.ingredients)) {
+      if (typeof copy.ingredients === "string") {
+        copy.ingredients = copy.ingredients
+          .split("\n")
+          .map((t) => t.trim())
+          .filter(Boolean);
+      } else {
+        copy.ingredients = [];
+      }
+    }
+
+    // -------- 5. INSTRUÇÕES --------
+    copy.instructions = (copy.instructions || "").toString();
+
+    // -------- 6. PORÇÕES --------
+    if (!copy.servings || isNaN(copy.servings)) {
+      copy.servings = 0;
+    }
+
+    // -------- 7. FAVORITA --------
+    if (typeof copy.favorite !== "boolean") {
+      copy.favorite = false;
+    }
+
+    // -------- 8. LINK --------
+    if (!copy.link) copy.link = "";
+
+    // -------- 9. FOTO --------
+    if (!("photo" in copy)) {
+      copy.photo = null;
+    }
+
+    return copy;
+  });
+}
+  
+
+
+
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn("Não foi possível salvar no localStorage:", e);
+    }
+  }
+
+    function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        state.recipes = parsed.recipes || [];
+        state.weeklyPlans = parsed.weeklyPlans || [];
+        state.selectedWeekIndex = parsed.selectedWeekIndex || 0;
+        state.shoppingLists = parsed.shoppingLists || {};
+        state.startWeekdayIndex = parsed.startWeekdayIndex ?? 3; // se quiser fixar na quinta
+        state.recipeStats = parsed.recipeStats || {};
+        state.mealCompliance =
+          (parsed.mealCompliance && typeof parsed.mealCompliance === "object")
+            ? parsed.mealCompliance
+            : {};
+
+        state.recipes = normalizeRecipes(state.recipes);
+        normalizeWeeklyPlans();
+        normalizeShoppingLists();
+      } else {
+        // estado inicial
+        state.recipes = normalizeRecipes(INITIAL_RECIPES);
+        
+        state.weeklyPlans = createDefaultWeeklyPlans(); // 10 ou 14 dias – o que você já estiver usando
+        state.shoppingLists = {};
+        state.startWeekdayIndex = 3; // Dia 1 = quinta
+        state.recipeStats = {};
+        state.mealCompliance = {};
+
+        state.recipes = normalizeRecipes(state.recipes);
+        normalizeWeeklyPlans();
+        normalizeShoppingLists();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+
+  function getRecipeById(id) {
+    return state.recipes.find(r => r.id === id) || null;
+  }
+
+  function removeRecipeFromWeeks(recipeId) {
+    state.weeklyPlans.forEach(wp => {
+      mealTypes.forEach(m => {
+        wp[m] = wp[m].filter(id => id !== recipeId);
+      });
+    });
+  }
+
+  function kindLabel(kind) {
+    if (kind === "doce") return "Doce";
+    return "Salgado";
+  }
+
+     function workLevelLabel(work) {
+      switch (work) {
+        case "principal":
+          return "🍽 Refeição principal";
+        case "cafe":
+          return "☕ Café";
+        case "sobremesa":
+          return "🍰 Sobremesa";
+        case "lanche":
+          return "☀️ Lanche";
+        case "ceia":
+          return "🌒 Ceia";
+        case "petisco":
+          return "🍷 Petisco";
+        default:
+          return work || "";
+      }
+    }
+
+
+
+  function mealLabel(m) {
+    if (m === "almoco") return "🍛 Almoço";
+    if (m === "jantar") return "🍽 Jantar";
+    if (m === "lanche") return "☕ Lanches";
+    if (m === "petisco") return "🍷 Petiscos com vinho";
+    return m;
+  }
+
+  // Dia 1 (índice 0) = Quinta, igual à Rotina 14 dias
+function weekdayForDayIndex(dayIndex) {
+  const fixedStartIndex = 3; // 0=Seg, 1=Ter, 2=Qua, 3=Qui
+  const idx = (fixedStartIndex + (dayIndex % 7) + 7) % 7;
+  return WEEKDAYS_SHORT[idx];
+}
+
+
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabPanels = document.querySelectorAll(".tab-panel");
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.tab;
+      tabButtons.forEach(b => b.classList.remove("active"));
+      tabPanels.forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(targetId).classList.add("active");
+    });
+  });
+
+  const recipesListEl = document.getElementById("recipesList");
+  const btnNovaReceita = document.getElementById("btnNovaReceita");
+  const recipeFormCard = document.getElementById("recipeFormCard");
+  const recipeForm = document.getElementById("recipeForm");
+  const recipeFormTitle = document.getElementById("recipeFormTitle");
+  const btnCancelarReceita = document.getElementById("btnCancelarReceita");
+
+  const fieldName = document.getElementById("recipeName");
+  const fieldKind = document.getElementById("recipeKind");
+  const fieldWork = document.getElementById("recipeWork");
+  const fieldServings = document.getElementById("recipeServings");
+  const fieldProtein = document.getElementById("recipeProtein");
+  const fieldIngredients = document.getElementById("recipeIngredients");
+  const fieldInstructions = document.getElementById("recipeInstructions");
+  const fieldPhoto = document.getElementById("recipePhoto");
+  const fieldLink = document.getElementById("recipeLink");
+
+  const filterFav = document.getElementById("filterFav");
+  const recipeSearch = document.getElementById("recipeSearch");
+
+  const photoOverlay = document.getElementById("photoOverlay");
+  const photoOverlayImg = document.getElementById("photoOverlayImg");
+
+  let currentEditingRecipeId = null;
+
+  function openPhoto(src, alt) {
+    if (!src) return;
+    photoOverlayImg.src = src;
+    photoOverlayImg.alt = alt || "Foto da receita";
+    photoOverlay.classList.add("active");
+  }
+
+  if (photoOverlay) {
+    photoOverlay.addEventListener("click", () => {
+      photoOverlay.classList.remove("active");
+    });
+  }
+
+  function renderRecipesList() {
     recipesListEl.innerHTML = "";
-    if (!list.length) {
-      recipesListEl.innerHTML = `<div class="hint">Nenhuma receita encontrada.</div>`;
+
+    if (!state.recipes.length) {
+      const p = document.createElement("p");
+      p.className = "small";
+      p.textContent = "Nenhuma receita cadastrada ainda. Clique em “Nova receita” para começar.";
+      recipesListEl.appendChild(p);
       return;
     }
 
-    for (const r of list) {
-      const item = document.createElement("div");
-      item.className = "recipe-item";
-      item.innerHTML = `
-        <div class="recipe-head">
-          <div class="recipe-title">
-            <strong>${escapeHtml(r.name)}</strong>
-            ${r.favorite ? '<span class="badge">⭐</span>' : ''}
-            <span class="badge">${labelType(r.type)}</span>
-            <span class="badge">${labelTime(r.timeClass)}</span>
-            <span class="badge">${labelProtein(r.protein)}</span>
-          </div>
-          <div class="recipe-actions">
-            <button class="btn small" data-act="edit">Editar</button>
-            <button class="btn small danger" data-act="del">Excluir</button>
-          </div>
-        </div>
-        <div class="recipe-body">
-          <div class="muted">${escapeHtml((r.ingredients||[]).join(", "))}</div>
-          ${r.instructions ? `<div class="recipe-inst">${escapeHtml(r.instructions)}</div>` : ""}
-          ${r.link ? `<div><a href="${escapeAttr(r.link)}" target="_blank" rel="noopener">Abrir link</a></div>` : ""}
+    const fFilter = filterFav ? filterFav.value : "";
+    const searchTerm = recipeSearch.value.trim().toLowerCase();
+
+    const filtered = state.recipes.filter(r => {
+      if (fFilter === "salgado" && r.kind !== "salgado") return false;
+      if (fFilter === "doce" && r.kind !== "doce") return false;
+      if (fFilter === "fav" && !r.favorite) return false;
+
+      const ingredientsText = Array.isArray(r.ingredients)
+        ? r.ingredients.join(" ")
+        : (r.ingredients || "");
+      if (searchTerm) {
+        const haystack =
+          (r.name || "") + " " +
+          ingredientsText + " " +
+          (r.instructions || "") + " " +
+          (r.link || "") + " " +
+          (r.kind || "");
+        if (!haystack.toLowerCase().includes(searchTerm)) return false;
+      }
+
+      return true;
+    });
+
+    if (!filtered.length) {
+      const p = document.createElement("p");
+      p.className = "small";
+      p.textContent = "Nenhuma receita encontrado com esses filtros ou busca.";
+      recipesListEl.appendChild(p);
+      return;
+    }
+
+    filtered.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "recipe-card";
+
+      const top = document.createElement("div");
+      top.className = "recipe-top";
+
+      if (r.photo) {
+        const img = document.createElement("img");
+        img.className = "recipe-photo";
+        img.src = r.photo;
+        img.alt = r.name;
+        img.addEventListener("click", () => openPhoto(r.photo, r.name));
+        top.appendChild(img);
+      }
+
+      const main = document.createElement("div");
+      main.className = "recipe-main";
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "recipe-name";
+      nameEl.textContent = r.name;
+
+      const metaEl = document.createElement("div");
+      metaEl.className = "recipe-meta";
+      metaEl.textContent =
+        kindLabel(r.kind) + " • " +
+        workLevelLabel(r.work) +
+        (r.servings ? " • " + r.servings + " porções" : "");
+
+      main.appendChild(nameEl);
+      main.appendChild(metaEl);
+
+      if (r.link) {
+        const linkRow = document.createElement("div");
+        linkRow.className = "recipe-link-inline small";
+        const a = document.createElement("a");
+        a.href = normalizeLink(r.link);
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = "🔗 Abrir receita";
+        linkRow.appendChild(a);
+        main.appendChild(linkRow);
+      }
+
+      top.appendChild(main);
+
+      const actions = document.createElement("div");
+      actions.className = "recipe-actions";
+
+      const detailsBtn = document.createElement("button");
+      detailsBtn.className = "btn sm";
+      detailsBtn.dataset.action = "details";
+      detailsBtn.dataset.id = r.id;
+      detailsBtn.textContent = "🙈";
+
+      const favBtn = document.createElement("button");
+      favBtn.className = "btn sm";
+      favBtn.dataset.action = "fav";
+      favBtn.dataset.id = r.id;
+      favBtn.textContent = r.favorite ? "⭐️" : "☆";
+
+      const addDayBtn = document.createElement("button");
+      addDayBtn.className = "btn sm";
+      addDayBtn.dataset.action = "add-to-day";
+      addDayBtn.dataset.id = r.id;
+      addDayBtn.textContent = "📅";
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn sm";
+      editBtn.dataset.action = "edit";
+      editBtn.dataset.id = r.id;
+      editBtn.textContent = "✏️";
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn sm danger";
+      delBtn.dataset.action = "delete";
+      delBtn.dataset.id = r.id;
+      delBtn.textContent = "🗑";
+
+      actions.appendChild(detailsBtn);
+      actions.appendChild(favBtn);
+      actions.appendChild(addDayBtn);
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      const details = document.createElement("div");
+      details.className = "recipe-details";
+      details.style.display = "none";
+
+      if (Array.isArray(r.ingredients) && r.ingredients.length) {
+        const ingTitle = document.createElement("div");
+        ingTitle.className = "section-title";
+        ingTitle.textContent = "Ingredientes";
+
+        const ingList = document.createElement("ul");
+        r.ingredients.forEach(ing => {
+          const li = document.createElement("li");
+          li.textContent = ing;
+          ingList.appendChild(li);
+        });
+
+        details.appendChild(ingTitle);
+        details.appendChild(ingList);
+      }
+
+      if (r.instructions) {
+        const instrTitle = document.createElement("div");
+        instrTitle.className = "section-title";
+        instrTitle.textContent = "Modo de preparo";
+
+        const instrText = document.createElement("p");
+        instrText.className = "small";
+        instrText.style.whiteSpace = "pre-wrap";
+        instrText.textContent = r.instructions || "";
+
+        details.appendChild(instrTitle);
+        details.appendChild(instrText);
+      }
+
+      
+
+      card.appendChild(top);
+      card.appendChild(actions);
+      card.appendChild(details);
+
+      recipesListEl.appendChild(card);
+    });
+  }
+
+  function openRecipeForm(isEdit, recipe) {
+    recipeFormCard.style.display = "block";
+    recipeForm.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    if (isEdit && recipe) {
+  recipeFormTitle.textContent = "Editar receita";
+  fieldName.value = recipe.name || "";
+  fieldKind.value = recipe.receita || "salgado";
+  fieldWork.value = recipe.refeicao || "principal";
+  fieldServings.value = recipe.servings || 3;
+  fieldIngredients.value = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients.join("\n")
+    : (recipe.ingredients || "");
+  fieldInstructions.value = recipe.instructions || "";
+  fieldLink.value = recipe.link || "";
+  fieldPhoto.value = "";
+  if (fieldProtein) {
+    fieldProtein.value = recipe.proteina || "veg";
+  }
+} else {
+  recipeFormTitle.textContent = "Nova receita";
+  recipeForm.reset();
+  fieldKind.value = "salgado";
+  fieldWork.value = "principal";
+  fieldServings.value = 3;
+  fieldLink.value = "";
+  if (fieldProtein) {
+    fieldProtein.value = "veg";
+  }
+}
+
+}
+  function closeRecipeForm() {
+    recipeFormCard.style.display = "none";
+    currentEditingRecipeId = null;
+  }
+
+  if (btnNovaReceita) {
+    btnNovaReceita.addEventListener("click", () => {
+      currentEditingRecipeId = null;
+      openRecipeForm(false, null);
+    });
+  }
+
+  if (btnCancelarReceita) {
+    btnCancelarReceita.addEventListener("click", () => {
+      closeRecipeForm();
+    });
+  }
+
+  recipesListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (!action || !id) return;
+
+    const recipe = getRecipeById(id);
+    if (!recipe) return;
+
+    if (action === "edit") {
+      currentEditingRecipeId = id;
+      openRecipeForm(true, recipe);
+    } else if (action === "delete") {
+      if (confirm("Tem certeza que deseja excluir esta receita?")) {
+        state.recipes = state.recipes.filter(r => r.id !== id);
+        removeRecipeFromWeeks(id);
+        saveState();
+        renderRecipesList();
+        renderWeekView();
+      }
+    } else if (action === "fav") {
+      recipe.favorite = !recipe.favorite;
+      btn.textContent = recipe.favorite ? "⭐️" : "☆";
+      saveState();
+    } else if (action === "details") {
+      const card = btn.closest(".recipe-card");
+      if (!card) return;
+      const detailsEl = card.querySelector(".recipe-details");
+      if (!detailsEl) return;
+      const isVisible = detailsEl.style.display === "block";
+      detailsEl.style.display = isVisible ? "none" : "block";
+      btn.textContent = isVisible ? "🙈" : "🐵";
+    } else if (action === "add-to-day") {
+      openAddToDayModal(id, recipe.name);
+    }
+  });
+
+  [filterFav, recipeSearch].forEach(el => {
+    if (!el) return;
+    el.addEventListener("input", renderRecipesList);
+    el.addEventListener("change", renderRecipesList);
+  });
+
+  recipeForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const name = fieldName.value.trim();
+    if (!name) {
+      alert("Informe um nome para a receita.");
+      return;
+    }
+
+    const ingredientsLines = fieldIngredients.value
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean);
+
+   const baseRecipe = {
+  name,
+  kind: fieldKind.value || "salgado",
+  work: fieldWork.value || "principal",   // agora: tipo de refeição
+  protein: fieldProtein ? (fieldProtein.value || "veg") : "veg",
+  servings: Number(fieldServings.value) || 3,
+  ingredients: ingredientsLines,
+  instructions: fieldInstructions.value.trim(),
+  link: normalizeLink(fieldLink.value)
+};
+
+
+    const file = fieldPhoto.files[0];
+
+    function finishSave(photoDataUrl) {
+      if (photoDataUrl) baseRecipe.photo = photoDataUrl;
+
+      if (currentEditingRecipeId) {
+        const idx = state.recipes.findIndex(r => r.id === currentEditingRecipeId);
+        if (idx >= 0) {
+          const existing = state.recipes[idx];
+          state.recipes[idx] = {
+            ...existing,
+            ...baseRecipe,
+            favorite: existing.favorite,
+            photo: photoDataUrl || existing.photo || null
+          };
+        }
+      } else {
+        baseRecipe.id = generateId();
+        baseRecipe.favorite = false;
+        baseRecipe.photo = baseRecipe.photo || null;
+        state.recipes.push(baseRecipe);
+      }
+
+      state.recipes = normalizeRecipes(state.recipes);
+      saveState();
+
+      if (filterFav) filterFav.value = "";
+      if (recipeSearch) recipeSearch.value = "";
+
+      renderRecipesList();
+      renderWeekView();
+      closeRecipeForm();
+    }
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        finishSave(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      finishSave(null);
+    }
+  });
+
+  const weekSelect = document.getElementById("weekSelect");
+  const mealSelect = document.getElementById("mealSelect");
+  const startWeekdaySelect = document.getElementById("startWeekdaySelect");
+  const currentMealTitle = document.getElementById("currentMealTitle");
+  const dayMealsContainer = document.getElementById("dayMealsContainer");
+  const btnOpenRotinaForDay = document.getElementById("btnOpenRotinaForDay");
+
+  const btnEditCurrentMeal = document.getElementById("btnEditCurrentMeal");
+  const btnClearDay = document.getElementById("btnClearDay");
+  const weekdayLabel = document.getElementById("weekdayLabel");
+
+  
+  // ===== SUGESTÕES – ELEMENTOS DA TELA =====
+const suggestContextText = document.getElementById("suggestContextText");
+const suggestProtein = document.getElementById("suggestProtein");
+const suggestWork = document.getElementById("suggestWork");
+const suggestKind = document.getElementById("suggestKind");
+const suggestFavOnly = document.getElementById("suggestFavOnly");
+const suggestAvoidRecent = document.getElementById("suggestAvoidRecent");
+const btnMostrarTudo = document.getElementById("btnMostrarTudo");
+
+const btnGerarSugestoes = document.getElementById("btnGerarSugestoes");
+const btnVisitasEmCasa = document.getElementById("btnVisitasEmCasa");
+const btnTenhoIngredientes = document.getElementById("btnTenhoIngredientes");
+
+
+
+function readFiltersFromUI() {
+  const kindFilter = (suggestKind && suggestKind.value) ? suggestKind.value : "tanto-faz";
+  const workFilter = (suggestWork && suggestWork.value) ? suggestWork.value : "tanto-faz";
+  const proteinFilter = (suggestProtein && suggestProtein.value) ? suggestProtein.value : "tanto-faz";
+  // Não há filtro de tempo na UI desta versão
+  const timeFilter = "tanto-faz";
+  // Mantém compatibilidade com versões antigas (poderia ser usado como atalho)
+  const avoidSweets = false;
+  return { kindFilter, workFilter, timeFilter, proteinFilter, avoidSweets };
+}
+
+const suggestionsContainer = document.getElementById("suggestionsContainer");
+
+if (btnMostrarTudo) {
+  btnMostrarTudo.addEventListener("click", () => {
+    // mostra TODAS as receitas que batem com os filtros escolhidos na aba ✨Filtro
+    lastSuggestionIgnoredIds = [];
+    generateSuggestionsNow({ extraMode: "filtrar", maxResults: 999 });
+  });
+}
+
+// guarda ids de receitas recusadas na rodada atual
+let lastSuggestionIgnoredIds = [];
+
+// Estatísticas por receita
+function getRecipeStats(id) {
+  if (!state.recipeStats || typeof state.recipeStats !== "object") {
+    state.recipeStats = {};
+  }
+  if (!state.recipeStats[id]) {
+    state.recipeStats[id] = {
+      usedCount: 0,
+      rejectedCount: 0,
+      lastUsedDay: null
+    };
+  }
+  return state.recipeStats[id];
+}
+
+function updateSuggestContextText() {
+  if (!suggestContextText) return;
+  const dayIdx = state.selectedWeekIndex || 0;
+  const dayNumber = dayIdx + 1;
+  const wd = weekdayForDayIndex(dayIdx);
+  const mealName = mealLabel(currentMealType);
+  suggestContextText.textContent = `Usando: Dia ${dayNumber} (${wd}) • ${mealName}`;
+}
+  
+
+ // ==== CALENDÁRIO DO CARDÁPIO ====
+  const btnVerCalendario = document.getElementById("btnVerCalendario");
+  const calendarOverlay = document.getElementById("calendarOverlay");
+  const calendarContent = document.getElementById("calendarContent");
+  const calendarClose = document.getElementById("calendarClose");
+
+  const calendarMealTypes = ["almoco", "lanche", "jantar", "petisco"];
+
+  function buildDayMealsText(dayPlan) {
+    const lines = [];
+
+    calendarMealTypes.forEach(mt => {
+      const ids = dayPlan[mt] || [];
+      if (!ids.length) return;
+
+      let label = "";
+      if (mt === "almoco") label = "Almoço";
+      else if (mt === "lanche") label = "Lanches";
+      else if (mt === "jantar") label = "Jantar";
+      else if (mt === "petisco") label = "Petiscos com vinho";
+
+      const names = ids
+        .map(id => {
+          const r = getRecipeById(id);
+          return r ? r.name : "(receita removida)";
+        })
+        .join(", ");
+
+      lines.push(`<strong>${label}:</strong> ${names}`);
+    });
+
+    if (!lines.length) {
+      return '<span class="small">Nenhuma receita escolhida para este dia.</span>';
+    }
+
+    return lines.join("<br>");
+  }
+
+  function renderCalendarView() {
+    if (!state.weeklyPlans || !state.weeklyPlans.length) {
+      calendarContent.innerHTML =
+        '<p class="small">Nenhum dia de cardápio foi configurado ainda.</p>';
+      return;
+    }
+
+    let html = '<div style="display:flex; flex-direction:column; gap:0.75rem;">';
+
+    state.weeklyPlans.forEach((dayPlan, index) => {
+      const dayNumber = index + 1;
+      const weekdayLabel = weekdayForDayIndex(index); // usa o que você já tem
+      const mealsHtml = buildDayMealsText(dayPlan);
+
+      html += `
+        <div style="border:1px solid var(--border); border-radius:8px; padding:0.5rem 0.75rem;">
+          <div class="section-title">Dia ${dayNumber} (${weekdayLabel})</div>
+          <div class="small">${mealsHtml}</div>
         </div>
       `;
-      item.querySelector('[data-act="edit"]').addEventListener("click", () => {
-        setFormFromRecipe(r);
-        openModal();
+    });
+
+    html += "</div>";
+    calendarContent.innerHTML = html;
+  }
+
+  if (btnVerCalendario && calendarOverlay && calendarContent) {
+    btnVerCalendario.addEventListener("click", () => {
+      renderCalendarView();
+      calendarOverlay.classList.add("active");
+    });
+  }
+
+  if (calendarClose) {
+    calendarClose.addEventListener("click", () => {
+      calendarOverlay.classList.remove("active");
+    });
+  }
+
+  if (calendarOverlay) {
+    calendarOverlay.addEventListener("click", (e) => {
+      if (e.target === calendarOverlay) {
+        calendarOverlay.classList.remove("active");
+      }
+    });
+  }
+
+  const modalOverlay = document.getElementById("modalOverlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalContent = document.getElementById("modalContent");
+  const modalCancel = document.getElementById("modalCancel");
+  const modalSave = document.getElementById("modalSave");
+  
+  // ===== ALGORITMO DE SUGESTÃO =====
+// ===== ALGORITMO DE SUGESTÃO (CORRIGIDO) =====
+function buildSuggestions(ignoredIds, extra) {
+  const { kindFilter, workFilter, timeFilter, proteinFilter, avoidSweets } = readFiltersFromUI();
+
+  const mode = (extra && extra.extraMode) ? extra.extraMode : "sugerir";
+  const maxResults = (extra && Number.isFinite(extra.maxResults))
+    ? Math.max(1, Math.floor(extra.maxResults))
+    : 3;
+
+  const tokens = (extra && Array.isArray(extra.ingredientsTokens))
+    ? extra.ingredientsTokens.map(t => String(t).trim().toLowerCase()).filter(Boolean)
+    : null;
+
+  const candidates = state.recipes
+    .filter(r => !ignoredIds.includes(r.id))
+    .filter(r => {
+      if (avoidSweets && r.kind === "doce") return false;
+      if (kindFilter !== "tanto-faz" && r.kind !== kindFilter) return false;
+      if (workFilter !== "tanto-faz" && r.work !== workFilter) return false;
+      if (timeFilter !== "tanto-faz" && r.timeClass !== timeFilter) return false;
+      if (proteinFilter !== "tanto-faz" && r.protein !== proteinFilter) return false;
+
+      if (tokens && tokens.length) {
+        const hay = (r.name + " " + (r.ingredients || []).join(" ")).toLowerCase();
+        for (const t of tokens) {
+          if (!hay.includes(t)) return false;
+        }
+      }
+      return true;
+    });
+
+  if (!candidates.length) return [];
+
+  const now = Date.now();
+  const ranked = candidates.map(r => {
+    let score = 0;
+
+    // encaixe (ajuda a ordenar quando houver "tanto-faz")
+    if (kindFilter !== "tanto-faz" && r.kind === kindFilter) score += 0.4;
+    if (workFilter !== "tanto-faz" && r.work === workFilter) score += 0.6;
+    if (timeFilter !== "tanto-faz" && r.timeClass === timeFilter) score += 0.5;
+    if (proteinFilter !== "tanto-faz" && r.protein === proteinFilter) score += 0.6;
+
+    // favorito
+    if (r.favorite) score += 0.7;
+
+    // rotação (menos repetição)
+    const st = (state.recipeStats && state.recipeStats[r.id]) ? state.recipeStats[r.id] : null;
+   if (!st || st.lastUsedDay == null) {
+  score += 0.4;
+} else {
+  // aprox: quanto mais longe no ciclo, melhor
+  const days = Math.abs((state.selectedWeekIndex || 0) - st.lastUsedDay);
+  if (days > 7) score += 0.5;
+  else if (days > 2) score += 0.2;
+}
+
+const countMade = (st && typeof st.usedCount === "number") ? st.usedCount : 0;
+
+    if (countMade === 0) score += 0.2;
+    if (countMade > 8) score -= 0.1;
+
+    // modo visitas: prioriza petisco/lanche sem "travar"
+    if (mode === "visitas") {
+      if (r.work === "petisco") score += 0.9;
+      else if (r.work === "lanche") score += 0.7;
+      else if (r.work === "cafe") score += 0.4;
+      else if (r.work === "sobremesa") score += 0.2;
+    }
+
+    // ingredientes: leve boost
+    if (tokens && tokens.length) score += Math.min(0.6, tokens.length * 0.15);
+
+    // variedade só no modo sugerir (para não bagunçar o filtro)
+    const allowRandom = (mode === "sugerir") && (maxResults <= 10);
+    if (allowRandom) score += Math.random() * 0.3;
+
+    return { r, score };
+  });
+
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked.slice(0, maxResults).map(x => x.r);
+}
+
+
+
+
+  // "Tenho esses ingredientes": por enquanto NÃO restringe (pra não zerar a lista).
+  // Depois eu ligo isso de verdade ao Inventário (fibroInventoryState), se você quiser.
+
+  renderRecipesList(filtered, f2.kindWanted, f2.workWanted, f2.onlyFav);
+}
+
+
+
+
+
+function renderSuggestions(recipes) {
+  if (!suggestionsContainer) return;
+  suggestionsContainer.innerHTML = "";
+
+  if (!recipes || !recipes.length) {
+    const p = document.createElement("p");
+    p.className = "small";
+    p.textContent = "Não encontrei receitas com esses filtros. Tente mudar a proteína, o tipo ou o nível de trabalho.";
+
+    suggestionsContainer.appendChild(p);
+    return;
+  }
+
+  recipes.forEach((r, index) => {
+    const card = document.createElement("div");
+    card.className = "recipe-card";
+
+    const top = document.createElement("div");
+    top.className = "recipe-top";
+
+    const main = document.createElement("div");
+    main.className = "recipe-main";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "recipe-name";
+    nameEl.textContent = `${index + 1}️⃣ ${r.name}`;
+
+    const metaEl = document.createElement("div");
+    metaEl.className = "recipe-meta";
+
+    const proteinLabel = r.protein || "—";
+const typeLabel = workLevelLabel(r.work);
+
+metaEl.textContent =
+  `proteína: ${proteinLabel} • ${typeLabel}` +
+  (r.favorite ? " • ⭐ favorita" : "");
+
+
+    main.appendChild(nameEl);
+    main.appendChild(metaEl);
+
+    top.appendChild(main);
+    card.appendChild(top);
+
+    // botões
+    const actions = document.createElement("div");
+    actions.className = "recipe-actions";
+
+    const useBtn = document.createElement("button");
+    useBtn.className = "btn sm primary";
+    useBtn.dataset.action = "suggest-use";
+    useBtn.dataset.id = r.id;
+    useBtn.textContent = "Usar nesta refeição";
+
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "btn sm";
+    nextBtn.dataset.action = "suggest-next";
+    nextBtn.dataset.id = r.id;
+    nextBtn.textContent = "Outra opção";
+
+    actions.appendChild(useBtn);
+    actions.appendChild(nextBtn);
+
+    card.appendChild(actions);
+
+    // se quiser, pode mostrar link
+    if (r.link) {
+      const linkRow = document.createElement("div");
+      linkRow.className = "recipe-link-inline small";
+      const a = document.createElement("a");
+      a.href = normalizeLink(r.link);
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "🔗 Abrir receita";
+      linkRow.appendChild(a);
+      card.appendChild(linkRow);
+    }
+
+    suggestionsContainer.appendChild(card);
+  });
+}
+
+
+
+if (suggestionsContainer) {
+  suggestionsContainer.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (!action || !id) return;
+
+    if (action === "suggest-use") {
+      // adicionar receita na refeição atual (dia + tipo)
+      if (!state.weeklyPlans || !state.weeklyPlans.length) {
+        state.weeklyPlans = createDefaultWeeklyPlans();
+      }
+      const dayIdx = state.selectedWeekIndex || 0;
+      const wp = state.weeklyPlans[dayIdx] || {
+        almoco: [], jantar: [], lanche: [], petisco: []
+      };
+      if (!Array.isArray(wp[currentMealType])) {
+        wp[currentMealType] = [];
+      }
+      if (!wp[currentMealType].includes(id)) {
+        wp[currentMealType].push(id);
+      }
+      state.weeklyPlans[dayIdx] = wp;
+
+      const stats = getRecipeStats(id);
+      stats.usedCount++;
+      stats.lastUsedDay = dayIdx;
+
+      saveState();
+      renderWeekView();
+
+      alert("Receita adicionada em " +
+        `Dia ${dayIdx + 1} – ${mealLabel(currentMealType)}.`);
+    }
+
+    if (action === "suggest-next") {
+      // marcar como recusada e gerar nova sugestão
+      const stats = getRecipeStats(id);
+      stats.rejectedCount++;
+      lastSuggestionIgnoredIds.push(id);
+      saveState();
+
+      const recs = buildSuggestions(lastSuggestionIgnoredIds);
+      renderSuggestions(recs);
+    }
+  });
+}
+
+
+
+
+
+
+function generateSuggestionsNow(extra) {
+  lastSuggestionIgnoredIds = [];
+  const recs = buildSuggestions(lastSuggestionIgnoredIds, extra);
+  renderSuggestions(recs);
+}
+
+if (btnGerarSugestoes) {
+  btnGerarSugestoes.addEventListener("click", () => {
+    generateSuggestionsNow();
+  });
+}
+
+
+
+// 👨‍👩‍👧‍👦 Visitas em casa → prioriza salgado + médio
+if (btnVisitasEmCasa) {
+  btnVisitasEmCasa.addEventListener("click", () => {
+    // NÃO força petisco/salgado: só prioriza petisco/lanche/favoritas no topo
+    lastSuggestionIgnoredIds = [];
+    generateSuggestionsNow({ extraMode: "visitas", maxResults: 999 });
+  });
+}
+
+// 🧺 Tenho esses ingredientes → pergunta e filtra por texto
+if (btnTenhoIngredientes) {
+  btnTenhoIngredientes.addEventListener("click", () => {
+    const txt = prompt("Digite ingredientes separados por vírgula (ex: ovo, queijo, tomate):");
+    if (!txt) return;
+    const ingredientsTokens = txt.split(",").map(s => s.trim()).filter(Boolean);
+    lastSuggestionIgnoredIds = [];
+    generateSuggestionsNow({ ingredientsTokens, extraMode: "filtrar", maxResults: 999 });
+  });
+}
+
+
+  function refreshDaySelectLabels() {
+  if (!weekSelect) return;
+  const opts = weekSelect.options;
+  for (let i = 0; i < opts.length; i++) {
+    const wd = weekdayForDayIndex(i);
+    opts[i].textContent = `Dia ${i + 1} (${wd})`;
+  }
+}
+
+
+
+    function getMealStatus(dayIndex, mealType) {
+    const dayData = state.mealCompliance?.[dayIndex] || {};
+    return dayData[mealType] || null; // null = sem registro
+  }
+
+  function setMealStatus(dayIndex, mealType, status) {
+    if (!state.mealCompliance || typeof state.mealCompliance !== "object") {
+      state.mealCompliance = {};
+    }
+    if (!state.mealCompliance[dayIndex]) {
+      state.mealCompliance[dayIndex] = {};
+    }
+
+    const current = state.mealCompliance[dayIndex][mealType] || null;
+    // clicar de novo no mesmo status limpa
+    state.mealCompliance[dayIndex][mealType] =
+      current === status ? null : status;
+
+    saveState();
+    updateMealStatusButtons();
+    renderResumoStats(); // atualiza o resumo se a aba estiver aberta
+  }
+
+  function updateMealStatusButtons() {
+    const containers = document.querySelectorAll(".meal-status-buttons");
+    containers.forEach(container => {
+      const dayIdx = Number(container.dataset.dayIndex) || 0;
+      const meal = container.dataset.meal;
+      const status = getMealStatus(dayIdx, meal);
+
+      container.querySelectorAll(".status-btn").forEach(btn => {
+        const myStatus = btn.dataset.status;
+        btn.classList.toggle("active", myStatus === status);
       });
-      item.querySelector('[data-act="del"]').addEventListener("click", () => {
-        if (!confirm(`Excluir "${r.name}"?`)) return;
-        state.recipes = state.recipes.filter(x => x.id !== r.id);
+    });
+  }
+
+
+
+  // Contadores
+  const counts = {
+    segui: 0,        // ✅ Dentro do combinado
+    ajustei: 0,      // ♻️ Ajustei
+    pulei: 0,        // ⏭️ Pulei
+    naoSegui: 0,     // ❌ Não segui
+    semRegistro: 0   // ainda não marquei nada
+  };
+
+  // Percorre todos os dias e tipos de refeição
+  state.weeklyPlans.forEach((wp, dayIdx) => {
+    if (!wp) return;
+    mealTypes.forEach(meal => {
+      const ids = wp[meal] || [];
+      // Só conta refeições que têm pelo menos 1 receita planejada
+      if (!ids.length) return;
+
+      const status = getMealStatus(dayIdx, meal);
+      if (status && counts.hasOwnProperty(status)) {
+        counts[status]++;
+      } else {
+        counts.semRegistro++;
+      }
+    });
+  });
+
+  const total =
+    counts.segui +
+    counts.ajustei +
+    counts.pulei +
+    counts.naoSegui +
+    counts.semRegistro;
+
+  if (!total) {
+    container.innerHTML =
+      '<p class="small">Ainda não há refeições marcadas como feitas. Use os botões "✅ / ♻️ / ⏭️ / ❌" na aba Dia.</p>';
+    return;
+  }
+
+  // Helper para criar uma linha de barra
+  function makeRow(label, key) {
+    const n = counts[key];
+    const pct = total ? Math.round((n / total) * 100) : 0;
+
+    const row = document.createElement("div");
+    row.className = "stats-row";
+
+    const labelDiv = document.createElement("div");
+    labelDiv.className = "label";
+    labelDiv.innerHTML = `<span>${label}</span><span>${n} (${pct}%)</span>`;
+
+    const bar = document.createElement("div");
+    bar.className = "stats-bar";
+
+    const fill = document.createElement("div");
+    fill.className = "stats-bar-fill " + key; // usa as classes .segui, .ajustei, etc
+    fill.style.width = pct + "%";
+
+    bar.appendChild(fill);
+    row.appendChild(labelDiv);
+    row.appendChild(bar);
+    return row;
+  }
+
+  // Monta o conteúdo
+  container.innerHTML = "";
+
+  const intro = document.createElement("p");
+  intro.className = "small";
+  intro.textContent =
+    `Total de refeições planejadas no ciclo: ${total}. ` +
+    ``;
+  container.appendChild(intro);
+
+  container.appendChild(makeRow("✅ Dentro do combinado", "segui"));
+  container.appendChild(makeRow("♻️ Ajustei, mas deu certo", "ajustei"));
+  container.appendChild(makeRow("⏭️ Puladas", "pulei"));
+  container.appendChild(makeRow("❌ Não segui o combinado", "naoSegui"));
+  container.appendChild(makeRow("📌 Sem registro ainda", "semRegistro"));
+}
+
+
+  function renderDayMeals() {
+    const wp = state.weeklyPlans[state.selectedWeekIndex];
+    dayMealsContainer.innerHTML = "";
+
+    mealTypes.forEach(m => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "week-list";
+
+      const title = document.createElement("div");
+      title.className = "section-title";
+      title.textContent = mealLabel(m) + (m === currentMealType ? " (editando)" : "");
+      wrapper.appendChild(title);
+
+      const ids = wp && wp[m] ? wp[m] : [];
+      if (!ids.length) {
+        const p = document.createElement("p");
+        p.className = "small";
+        p.textContent = "Nenhuma receita selecionada.";
+        wrapper.appendChild(p);
+      } else {
+        const ul = document.createElement("ul");
+        ids.forEach(id => {
+          const r = getRecipeById(id);
+          const li = document.createElement("li");
+          const span = document.createElement("span");
+          span.textContent = r ? r.name : "(receita removida)";
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "btn sm danger";
+          removeBtn.dataset.action = "remove-day-recipe";
+          removeBtn.dataset.meal = m;
+          removeBtn.dataset.recipeId = id;
+          removeBtn.textContent = "❌";
+          li.appendChild(span);
+          li.appendChild(removeBtn);
+          ul.appendChild(li);
+        });
+        wrapper.appendChild(ul);
+      }
+
+      // 🔹 NOVO: linha de status da refeição
+      const statusRow = document.createElement("div");
+      statusRow.className = "meal-status-row";
+      statusRow.innerHTML = `
+        <span class="small-label"></span>
+        <div class="meal-status-buttons"
+             data-day-index="${state.selectedWeekIndex}"
+             data-meal="${m}">
+          <button type="button" class="status-btn" data-status="segui">✅ Segui</button>
+          <button type="button" class="status-btn" data-status="ajustei">♻️ Ajustei</button>
+          <button type="button" class="status-btn" data-status="pulei">⏭️ Pulei</button>
+          <button type="button" class="status-btn" data-status="naoSegui">❌ Não segui</button>
+        </div>
+      `;
+      wrapper.appendChild(statusRow);
+
+      dayMealsContainer.appendChild(wrapper);
+    });
+
+    // aplica o destaque nos botões
+    updateMealStatusButtons();
+  }
+
+
+  function renderWeekView() {
+  const d = state.selectedWeekIndex + 1;
+  const wd = weekdayForDayIndex(state.selectedWeekIndex); // ex.: "Qui"
+
+  currentMealTitle.textContent = "Opções do dia " + d + " (" + wd + ")";
+
+  if (weekdayLabel) {
+    weekdayLabel.textContent = wd.toUpperCase();
+  }
+
+  renderDayMeals();
+  updateSuggestContextText();
+  renderResumoStats(); // 🔹 atualiza o resumo sempre que o dia for re-renderizado
+}
+
+
+  
+  
+
+  if (weekSelect) {
+    weekSelect.addEventListener("change", () => {
+      state.selectedWeekIndex = Number(weekSelect.value) || 0;
+      saveState();
+      renderWeekView();
+    });
+  }
+
+  if (mealSelect) {
+    mealSelect.addEventListener("change", () => {
+      currentMealType = mealSelect.value;
+      renderWeekView();
+    });
+  }
+
+  if (startWeekdaySelect) {
+    startWeekdaySelect.addEventListener("change", () => {
+      state.startWeekdayIndex = Number(startWeekdaySelect.value) || 0;
+      saveState();
+      refreshDaySelectLabels();
+      renderWeekView();
+    });
+  }
+
+  // Botão que abre a Rotina já no dia selecionado no Cardápio
+  if (btnOpenRotinaForDay && weekSelect) {
+    btnOpenRotinaForDay.addEventListener("click", () => {
+      const dayIndex = Number(weekSelect.value) || 0; // 0–9
+      const dayNumber = dayIndex + 1;                  // Dia 1–10
+
+      // Se o arquivo da Rotina tiver outro nome, troque "rotina.html" aqui
+      window.location.href = `rotina.html?dia=${dayNumber}`;
+    });
+  }
+
+
+    dayMealsContainer.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+
+    // 1) Botões de status da refeição
+    if (btn.classList.contains("status-btn")) {
+      const container = btn.closest(".meal-status-buttons");
+      if (!container) return;
+      const dayIdx = Number(container.dataset.dayIndex) || 0;
+      const meal = container.dataset.meal;
+      const status = btn.dataset.status;
+      setMealStatus(dayIdx, meal, status);
+      return;
+    }
+
+    // 2) Botão de remover receita do dia
+    if (btn.dataset.action !== "remove-day-recipe") return;
+    const meal = btn.dataset.meal;
+    const recipeId = btn.dataset.recipeId;
+    if (!meal || !recipeId) return;
+    if (!confirm("Remover esta receita deste dia?")) return;
+
+    const wp = state.weeklyPlans[state.selectedWeekIndex];
+    if (!wp) return;
+    wp[meal] = (wp[meal] || []).filter(id => id !== recipeId);
+    saveState();
+    renderWeekView();
+  });
+
+
+  if (btnClearDay) {
+    btnClearDay.addEventListener("click", () => {
+      if (!confirm("Tem certeza que deseja limpar todas as opções deste dia?")) return;
+      const wp = state.weeklyPlans[state.selectedWeekIndex];
+      if (!wp) return;
+      mealTypes.forEach(m => { wp[m] = []; });
+      saveState();
+      renderWeekView();
+    });
+  }
+
+  function openWeekModal() {
+    currentModalMode = "editDayMeal";
+    modalRecipeToAddId = null;
+
+    const label = mealLabel(currentMealType);
+    modalTitle.textContent = "Escolher receitas para " + label;
+
+    const recipesOfType = state.recipes || [];
+    modalContent.innerHTML = "";
+
+    if (!recipesOfType.length) {
+      const p = document.createElement("p");
+      p.className = "small";
+      p.textContent = "Você ainda não cadastrou receitas.";
+      modalContent.appendChild(p);
+    } else {
+      const ul = document.createElement("ul");
+      ul.className = "recipe-checkbox-list";
+
+      const wp = state.weeklyPlans[state.selectedWeekIndex] || {
+        almoco: [], jantar: [], lanche: [], petisco: []
+      };
+      const selectedIds = wp[currentMealType] || [];
+
+      recipesOfType.forEach(r => {
+        const li = document.createElement("li");
+        const id = "chk_" + currentMealType + "_" + r.id;
+        const meta = workLevelLabel(r.work);
+        li.innerHTML =
+          '<label><input type="checkbox" id="' + id + '" data-recipe-id="' + r.id + '"' +
+          (selectedIds.includes(r.id) ? " checked" : "") +
+          "> " + r.name + ' <span class="small">(' + meta + ')</span></label>';
+        ul.appendChild(li);
+      });
+
+      modalContent.appendChild(ul);
+    }
+
+    modalOverlay.classList.add("active");
+  }
+
+  function openAddToDayModal(recipeId, recipeName) {
+    currentModalMode = "addSingleRecipe";
+    modalRecipeToAddId = recipeId;
+
+    modalTitle.textContent = 'Adicionar "' + (recipeName || "") + '" ao dia';
+
+    const selectedIdx = state.selectedWeekIndex;
+
+    const html = `
+  <label for="modalDaySelect">Dia</label>
+  <select id="modalDaySelect">
+    ${Array.from({ length: 14 }).map((_, i) => {
+      const wd = weekdayForDayIndex(i);
+      return `<option value="${i}" ${i === selectedIdx ? "selected" : ""}>Dia ${i + 1} (${wd})</option>`;
+    }).join("")}
+  </select>
+
+  <label for="modalMealSelect">Tipo de refeição</label>
+  <select id="modalMealSelect">
+    <option value="almoco">🍛 Almoço</option>
+    <option value="jantar">🍽 Jantar</option>
+    <option value="lanche">☕ Lanches</option>
+    <option value="petisco">🍷 Petiscos com vinho</option>
+  </select>
+`;
+
+    modalContent.innerHTML = html;
+    modalOverlay.classList.add("active");
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove("active");
+    currentModalMode = null;
+    modalRecipeToAddId = null;
+  }
+
+  if (btnEditCurrentMeal) {
+    btnEditCurrentMeal.addEventListener("click", () => {
+      openWeekModal();
+    });
+  }
+
+  if (modalCancel) {
+    modalCancel.addEventListener("click", () => {
+      closeModal();
+    });
+  }
+
+  if (modalOverlay) {
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) {
+        closeModal();
+      }
+    });
+  }
+
+  if (modalSave) {
+    modalSave.addEventListener("click", () => {
+      if (currentModalMode === "editDayMeal") {
+        if (!state.weeklyPlans || !state.weeklyPlans.length) {
+          state.weeklyPlans = createDefaultWeeklyPlans();
+        }
+        const wp = state.weeklyPlans[state.selectedWeekIndex] || {
+          almoco: [], jantar: [], lanche: [], petisco: []
+        };
+        const inputs = modalContent.querySelectorAll("input[type=checkbox][data-recipe-id]");
+        const selected = [];
+        inputs.forEach(input => {
+          if (input.checked) selected.push(input.dataset.recipeId);
+        });
+        wp[currentMealType] = selected;
+        state.weeklyPlans[state.selectedWeekIndex] = wp;
         saveState();
-        renderRecipes();
+        renderWeekView();
+        closeModal();
+      } else if (currentModalMode === "addSingleRecipe" && modalRecipeToAddId) {
+        const daySelect = modalContent.querySelector("#modalDaySelect");
+        const mealSelectModal = modalContent.querySelector("#modalMealSelect");
+        const dayIdx = daySelect ? Number(daySelect.value) || 0 : 0;
+        const meal = mealSelectModal ? mealSelectModal.value : "almoco";
+
+        if (!state.weeklyPlans || !state.weeklyPlans.length) {
+          state.weeklyPlans = createDefaultWeeklyPlans();
+        }
+        const wp = state.weeklyPlans[dayIdx] || {
+          almoco: [], jantar: [], lanche: [], petisco: []
+        };
+        if (!Array.isArray(wp[meal])) wp[meal] = [];
+        if (!wp[meal].includes(modalRecipeToAddId)) {
+          wp[meal].push(modalRecipeToAddId);
+        }
+        state.weeklyPlans[dayIdx] = wp;
+        saveState();
+
+        if (state.selectedWeekIndex === dayIdx) {
+          renderWeekView();
+        }
+
+        closeModal();
+      } else {
+        closeModal();
+      }
+    });
+  }
+
+  const btnGerarLista = document.getElementById("btnGerarLista");
+  const btnClearShopping = document.getElementById("btnClearShopping");
+  const shoppingListContainer = document.getElementById("shoppingListContainer");
+
+  // Linhas que vão para a lista de compras:
+  // - ignoramos linhas começando com "- " (títulos/seções)
+  function isShoppingIngredientLine(txt) {
+    if (!txt) return false;
+    const t = String(txt).trim();
+    if (!t) return false;
+    if (t.startsWith("#")) return false; // é seção, não ingrediente
+    return true; // todo o resto entra na lista
+  }
+
+
+  function buildBlocksFromWeeklyPlans() {
+    const blocks = [];
+    const usedIds = new Set();
+
+    state.weeklyPlans.forEach(wp => {
+      if (!wp) return;
+      mealTypes.forEach(mt => {
+        (wp[mt] || []).forEach(id => {
+          const r = getRecipeById(id);
+          if (!r || !r.ingredients) return;
+          if (usedIds.has(id)) return;
+          usedIds.add(id);
+                    const ingredientsArray = Array.isArray(r.ingredients)
+            ? [...r.ingredients]
+            : (r.ingredients ? [r.ingredients] : []);
+
+          // filtramos: só entram as linhas que NÃO são título (não começam com "#")
+          const shoppingIngredients = ingredientsArray.filter(isShoppingIngredientLine);
+
+          // se por acaso a receita não tiver nenhum ingrediente "comprável", pulamos
+          if (!shoppingIngredients.length) return;
+
+          blocks.push({
+            id: generateId(),
+            type: "recipe",
+            recipeId: id,
+            name: r.name,
+            items: shoppingIngredients.map(txt => ({
+              id: generateId(),
+              text: txt,
+              checked: false
+            }))
+          });
+
+        });
       });
-      recipesListEl.appendChild(item);
+    });
+
+    return blocks;
+  }
+
+  function ensureShoppingBlocksGlobal() {
+    const key = "all";
+    if (!state.shoppingLists) state.shoppingLists = {};
+    const existing = state.shoppingLists[key];
+    if (existing && Array.isArray(existing.blocks)) {
+      existing.blocks.forEach(b => {
+        if (!b.type) b.type = b.recipeId ? "recipe" : "custom";
+        if (!Array.isArray(b.items)) b.items = [];
+      });
+      return existing.blocks;
     }
-  }
 
-  function labelType(t) {
-    const map={ refeicao:"🍽️ Refeição", lanche:"🥪 Lanche", petisco:"🍢 Petisco", sobremesa:"🍓 Sobremesa" };
-    return map[t] || t || "🍽️";
-  }
-  function labelTime(t) {
-    const map={ curto:"⏱️ Curto", medio:"🕒 Médio", longo:"⏳ Longo" };
-    return map[t] || t || "⏱️";
-  }
-  function labelProtein(p) {
-    const map={ frango:"🍗 Frango", boi:"🥩 Boi", porco:"🐷 Porco", peixe:"🐟 Peixe", ovo:"🥚 Ovo", queijo:"🧀 Queijo", veg:"🥦 Veg" };
-    return map[p] || p || "🥦";
-  }
-
-  function escapeHtml(s) {
-    return String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-  }
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/\s/g, "%20");
-  }
-
-  // Events
-  recipeSearchEl?.addEventListener("input", renderRecipes);
-
-  btnNovaReceita?.addEventListener("click", () => {
-    setFormFromRecipe({ id:"", name:"", type:"refeicao", protein:"veg", timeClass:"curto", ingredients:[], instructions:"", link:"", favorite:false });
-    openModal();
-  });
-
-  btnCloseRecipeModal?.addEventListener("click", closeModal);
-  recipeModal?.addEventListener("click", (e) => {
-    if (e.target === recipeModal) closeModal();
-  });
-
-  btnSaveRecipe?.addEventListener("click", () => {
-    const r = readRecipeFromForm();
-    if (!r.name.trim()) {
-      alert("Dê um nome para a receita.");
-      return;
-    }
-    // upsert
-    const idx = state.recipes.findIndex(x => x.id === r.id);
-    if (idx >= 0) state.recipes[idx] = r;
-    else state.recipes.unshift(r);
+    const blocks = buildBlocksFromWeeklyPlans();
+    state.shoppingLists[key] = { blocks };
     saveState();
-    closeModal();
-    renderRecipes();
-  });
+    return blocks;
+  }
 
-  // Backup / Restore
-  btnBackupExport?.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "cardapio-backup.json";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(a.href);
-      a.remove();
-    }, 500);
-  });
+  function renderShoppingList() {
+    const blocks = ensureShoppingBlocksGlobal();
+    shoppingListContainer.innerHTML = "";
 
-  btnBackupImport?.addEventListener("click", () => {
-    backupFile?.click();
-  });
+    if (!blocks.length) {
+      const p = document.createElement("p");
+      p.className = "small";
+      p.textContent = "Nenhuma receita selecionada ainda. Escolha receitas na aba “Dia”.";
+      shoppingListContainer.appendChild(p);
+    } else {
+      blocks.forEach(block => {
+        const blockEl = document.createElement("div");
+        blockEl.className = "shopping-recipe-block";
+        blockEl.dataset.blockId = block.id;
 
-  backupFile?.addEventListener("change", async () => {
-    const file = backupFile.files && backupFile.files[0];
-    if (!file) return;
-    const txt = await file.text();
-    const st = safeParse(txt, null);
-    if (!st || typeof st !== "object") {
-      alert("Arquivo inválido.");
-      backupFile.value = "";
+        const header = document.createElement("div");
+        header.className = "shopping-header";
+
+        const title = document.createElement("div");
+        title.className = "section-title";
+        title.textContent = block.name || (block.type === "custom" ? "Lista avulsa" : "Receita");
+
+        const headerActions = document.createElement("div");
+        headerActions.className = "shopping-header-actions";
+
+        const addItemBtn = document.createElement("button");
+        addItemBtn.className = "btn sm";
+        addItemBtn.dataset.action = "add-item";
+        addItemBtn.textContent = "➕ item";
+
+        headerActions.appendChild(addItemBtn);
+
+        if (block.type === "recipe") {
+          const finishBtn = document.createElement("button");
+          finishBtn.className = "btn sm";
+          finishBtn.dataset.action = "finish-list";
+          finishBtn.textContent = "Finalizar lista";
+          headerActions.appendChild(finishBtn);
+        }
+
+        header.appendChild(title);
+        header.appendChild(headerActions);
+
+        const ul = document.createElement("ul");
+        block.items.forEach(item => {
+          const li = document.createElement("li");
+          li.dataset.itemId = item.id;
+
+          const label = document.createElement("label");
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.dataset.itemId = item.id;
+          if (item.checked) checkbox.checked = true;
+
+          const span = document.createElement("span");
+          span.contentEditable = "true";
+          span.dataset.itemId = item.id;
+          span.textContent = item.text;
+
+          label.appendChild(checkbox);
+          label.appendChild(span);
+
+          const editBtn = document.createElement("button");
+          editBtn.className = "btn sm";
+          editBtn.dataset.action = "edit-item";
+          editBtn.dataset.itemId = item.id;
+          editBtn.textContent = "✏️";
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn sm danger";
+          delBtn.dataset.action = "delete-item";
+          delBtn.dataset.itemId = item.id;
+          delBtn.textContent = "🗑";
+
+          li.appendChild(label);
+          li.appendChild(editBtn);
+          li.appendChild(delBtn);
+
+          ul.appendChild(li);
+        });
+
+        blockEl.appendChild(header);
+        blockEl.appendChild(ul);
+        shoppingListContainer.appendChild(blockEl);
+      });
+    }
+
+    const extraBlock = document.createElement("div");
+    extraBlock.className = "shopping-recipe-block";
+    const h = document.createElement("div");
+    h.className = "shopping-header";
+    const t = document.createElement("div");
+    t.className = "section-title";
+    t.textContent = "Listas avulsas";
+    const actions = document.createElement("div");
+    actions.className = "shopping-header-actions";
+    const newListBtn = document.createElement("button");
+    newListBtn.className = "btn sm";
+    newListBtn.dataset.action = "new-custom-list";
+    newListBtn.textContent = "➕ Nova lista avulsa";
+    actions.appendChild(newListBtn);
+    h.appendChild(t);
+    h.appendChild(actions);
+    extraBlock.appendChild(h);
+    shoppingListContainer.appendChild(extraBlock);
+  }
+
+  if (btnGerarLista) {
+    btnGerarLista.addEventListener("click", () => {
+      const blocks = buildBlocksFromWeeklyPlans();
+      state.shoppingLists["all"] = { blocks };
+      saveState();
+      renderShoppingList();
+    });
+  }
+
+  if (btnClearShopping) {
+    btnClearShopping.addEventListener("click", () => {
+      const key = "all";
+      const existing = state.shoppingLists[key];
+      if (!existing || !existing.blocks || !existing.blocks.length) {
+        alert("Não há lista gerada ainda.");
+        return;
+      }
+      if (!confirm("Limpar toda a lista geral de compras?")) return;
+      delete state.shoppingLists[key];
+      saveState();
+      shoppingListContainer.innerHTML = '<p class="small">Lista apagada. Gere novamente se precisar.</p>';
+    });
+  }
+
+  shoppingListContainer.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    if (!action) return;
+
+    const key = "all";
+    const blocks = ensureShoppingBlocksGlobal();
+
+    if (action === "new-custom-list") {
+      const countCustom = blocks.filter(b => b.type === "custom").length;
+      blocks.push({
+        id: generateId(),
+        type: "custom",
+        recipeId: null,
+        name: "Lista avulsa " + (countCustom + 1),
+        items: []
+      });
+      state.shoppingLists[key] = { blocks };
+      saveState();
+      renderShoppingList();
       return;
     }
-    if (!confirm("Restaurar backup? Isso substituirá os dados atuais.")) {
-      backupFile.value = "";
-      return;
+
+    const blockEl = btn.closest(".shopping-recipe-block");
+    if (!blockEl) return;
+    const blockId = blockEl.dataset.blockId;
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+
+    if (action === "add-item") {
+      block.items.unshift({
+        id: generateId(),
+        text: "Novo item",
+        checked: false
+      });
+      state.shoppingLists[key] = { blocks };
+      saveState();
+      renderShoppingList();
+    } else if (action === "finish-list") {
+      if (!confirm("Remover esta lista de compras?")) return;
+      const idxBlock = blocks.findIndex(b => b.id === blockId);
+      if (idxBlock >= 0) {
+        blocks.splice(idxBlock, 1);
+        state.shoppingLists[key] = { blocks };
+        saveState();
+        renderShoppingList();
+      }
+    } else if (action === "delete-item") {
+      const itemId = btn.dataset.itemId;
+      if (!itemId) return;
+      if (!confirm("Excluir este item da lista?")) return;
+      block.items = block.items.filter(it => it.id !== itemId);
+      state.shoppingLists[key] = { blocks };
+      saveState();
+      renderShoppingList();
+    } else if (action === "edit-item") {
+      const itemId = btn.dataset.itemId;
+      if (!itemId) return;
+      const li = blockEl.querySelector('li[data-item-id="' + itemId + '"]');
+      if (!li) return;
+      const span = li.querySelector('span[contenteditable="true"]');
+      if (!span) return;
+
+      const editing = btn.dataset.mode === "editing";
+      if (!editing) {
+        btn.dataset.mode = "editing";
+        btn.textContent = "OK";
+        span.focus();
+        const sel = window.getSelection && window.getSelection();
+        if (sel && sel.removeAllRanges) {
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      } else {
+        btn.dataset.mode = "";
+        btn.textContent = "✏️";
+        span.blur();
+        saveState();
+      }
     }
-    // sanitize
-    state.recipes = Array.isArray(st.recipes) ? st.recipes.map(normalizeRecipe) : [];
-    state.dayMeals = (st.dayMeals && typeof st.dayMeals === "object") ? st.dayMeals : {};
+  });
+
+  shoppingListContainer.addEventListener("input", (e) => {
+    const span = e.target.closest('span[contenteditable="true"][data-item-id]');
+    if (!span) return;
+    const itemId = span.dataset.itemId;
+    const blockEl = span.closest(".shopping-recipe-block");
+    if (!blockEl) return;
+    const blockId = blockEl.dataset.blockId;
+
+    const key = "all";
+    const blocks = ensureShoppingBlocksGlobal();
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+    const item = block.items.find(it => it.id === itemId);
+    if (!item) return;
+
+    item.text = span.textContent.trim();
+    state.shoppingLists[key] = { blocks };
     saveState();
-    backupFile.value = "";
-    renderRecipes();
-    alert("Backup restaurado ✅");
   });
 
-  // Init
-  activateTab("tabReceitas");
-  renderRecipes();
+  shoppingListContainer.addEventListener("change", (e) => {
+    const input = e.target.closest('input[type="checkbox"][data-item-id]');
+    if (!input) return;
+    const itemId = input.dataset.itemId;
+    const blockEl = input.closest(".shopping-recipe-block");
+    if (!blockEl) return;
+    const blockId = blockEl.dataset.blockId;
+
+    const key = "all";
+    const blocks = ensureShoppingBlocksGlobal();
+    const block = blocks.find(b => b.id === blockId);
+    if (!block) return;
+    const item = block.items.find(it => it.id === itemId);
+    if (!item) return;
+
+    item.checked = !!input.checked;
+    state.shoppingLists[key] = { blocks };
+    saveState();
+  });
+
+  loadState();
+
+  if (!state.weeklyPlans || !state.weeklyPlans.length) {
+    state.weeklyPlans = createDefaultWeeklyPlans();
+  } else if (state.weeklyPlans.length < 14) {
+    const missing = 14 - state.weeklyPlans.length;
+    for (let i = 0; i < missing; i++) {
+      state.weeklyPlans.push({
+        name: "Dia " + (state.weeklyPlans.length + 1),
+        almoco: [],
+        jantar: [],
+        lanche: [],
+        petisco: []
+      });
+    }
+  }
+
+  const weekSelectEl = document.getElementById("weekSelect");
+  const mealSelectEl = document.getElementById("mealSelect");
+  const startWeekdaySelectEl = document.getElementById("startWeekdaySelect");
+
+  if (weekSelectEl) {
+    weekSelectEl.value = String(state.selectedWeekIndex);
+  }
+  if (mealSelectEl) {
+    mealSelectEl.value = currentMealType;
+  }
+  if (startWeekdaySelectEl) {
+    startWeekdaySelectEl.value = String(state.startWeekdayIndex || 0);
+  }
+
+  refreshDaySelectLabels();
+renderRecipesList();
+renderWeekView();
+updateSuggestContextText();
+  renderResumoStats();
+
+
 })();
 
+
+  function computeMealStats() {
+    const stats = {
+      total: 0,
+      segui: 0,
+      ajustei: 0,
+      pulei: 0,
+      naoSegui: 0
+    };
+
+    const plans = state.weeklyPlans || [];
+    if (!plans.length) return stats;
+
+    const mealTypes = ["almoco", "jantar", "lanche", "petisco"];
+
+    plans.forEach((dayPlan, dayIdx) => {
+      if (!dayPlan) return;
+      mealTypes.forEach(m => {
+        const ids = dayPlan[m] || [];
+        if (!ids.length) return; // só conta refeição que tem algo planejado
+
+        stats.total++;
+
+        const dayData = state.mealCompliance?.[dayIdx] || {};
+        const s = dayData[m];
+
+        if (s === "segui") stats.segui++;
+        else if (s === "ajustei") stats.ajustei++;
+        else if (s === "pulei") stats.pulei++;
+        else if (s === "naoSegui") stats.naoSegui++;
+      });
+    });
+
+    return stats;
+  }
+
+  function renderResumoStats() {
+    const container = document.getElementById("statsResumoContent");
+    if (!container) return;
+
+    const st = computeMealStats();
+    const total = st.total;
+
+    if (!total) {
+      container.innerHTML =
+        '<p class="small">Planeje pelo menos uma refeição (almoço, jantar, lanches ou petiscos) para ver o resumo.</p>';
+      return;
+    }
+
+    const semRegistro = total - st.segui - st.ajustei - st.pulei - st.naoSegui;
+
+    const pct = (v) => total ? Math.round((v * 100) / total) : 0;
+
+    function row(label, css, value, percent) {
+      if (value === 0) {
+        return `
+          <div class="stats-row">
+            <div class="label">
+              <span>${label}</span>
+              <span>0 (0%)</span>
+            </div>
+            <div class="stats-bar">
+              <div class="stats-bar-fill ${css}" style="width:0%;"></div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="stats-row">
+          <div class="label">
+            <span>${label}</span>
+            <span>${value} (${percent}%)</span>
+          </div>
+          <div class="stats-bar">
+            <div class="stats-bar-fill ${css}" style="width:${percent}%;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      <p class="small">
+        Considerando todas as refeições planejadas (almoço, jantar, lanches e petiscos),
+        você tem <strong>${total}</strong> refeições registradas no ciclo.
+      </p>
+      <div class="stats-resumo-section">
+        ${row("✅ Segui como planejado", "segui", st.segui, pct(st.segui))}
+        ${row("♻️ Ajustei (variação segura)", "ajustei", st.ajustei, pct(st.ajustei))}
+        ${row("⏭️ Pulei", "pulei", st.pulei, pct(st.pulei))}
+        ${row("❌ Não segui (fora do combinado)", "naoSegui", st.naoSegui, pct(st.naoSegui))}
+        ${semRegistro > 0
+          ? row("📝 Sem registro (nem marcado)", "semRegistro", semRegistro, pct(semRegistro))
+          : ""
+        }
+      </div>
+    `;
+  }
 </script>
 
 
