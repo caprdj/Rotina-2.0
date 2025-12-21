@@ -2534,10 +2534,10 @@ function renderDay(){
   daySlots.innerHTML = SLOT_DEFS.map(s=>{
     const ids = day[s.key] || [];
     const itemsHTML = ids.map((rid, idx)=>{
-      const r = getRecipeById(rid);
+      const r = findRecipe(rid);
       if(!r) return "";
       const title = escapeHtml(r.name);
-      const sub = [r.meal, r.protein].filter(Boolean).join(" • ");
+      const sub = [r.mealType, r.protein].filter(Boolean).join(" • ");
       return `
         <div class="mini-card" draggable="true" data-drag="${s.key}" data-idx="${idx}">
           <div class="mini-title">${title}</div>
